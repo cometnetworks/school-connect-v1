@@ -138,6 +138,11 @@ export default defineSchema({
     assignedHumanId: v.optional(v.id("users")),
     kapsoConversationId: v.optional(v.string()),
     pendingSlots: v.optional(v.string()),
+    type: v.optional(v.union(
+      v.literal("admission"),
+      v.literal("parent"),
+      v.literal("director"),
+    )),
   })
     .index("by_school", ["schoolId"])
     .index("by_school_status", ["schoolId", "status"])

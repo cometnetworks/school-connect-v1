@@ -354,6 +354,8 @@ function DirectorReplyBox({ conversationId }: { conversationId: Id<"conversation
 export default function DirectorDashboard() {
   const { slug } = useParams<{ slug: string }>();
   const data = useQuery(api.director.summary, { schoolSlug: slug });
+  const admissionPipeline = useQuery(api.director.pipeline, { schoolSlug: slug }) ?? [];
+  const parentPipeline = useQuery(api.director.parentMessages, { schoolSlug: slug }) ?? [];
   const pendingRelays = useQuery(api.conversations.pendingRelayCount, { schoolSlug: slug }) ?? 0;
   const [selectedConvId, setSelectedConvId] = useState<Id<"conversations"> | null>(null);
   const [showPublish, setShowPublish] = useState(false);
@@ -451,54 +453,88 @@ export default function DirectorDashboard() {
         </div>
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-          {/* Pipeline de admisiones */}
-          <div className="lg:col-span-2 bg-white rounded-2xl border border-border shadow-sm overflow-hidden">
-            <div className="px-6 py-4 border-b border-border flex items-center justify-between">
-              <h2 className="font-semibold text-fg text-sm">Pipeline de Admisiones</h2>
-              <span className="text-xs text-fg-muted">{kpis.total} conversaciones · click para ver detalle</span>
-            </div>
-            <div className="divide-y divide-border">
-              {recentConversations.length === 0 && (
-                <p className="px-6 py-10 text-center text-fg-muted text-sm">Sin conversaciones aún.</p>
-              )}
-              {recentConversations.map((c) => (
-                <button
-                  key={c._id}
-                  onClick={() => setSelectedConvId(c._id as Id<"conversations">)}
-                  className="w-full px-6 py-4 flex items-center gap-4 hover:bg-[#FAF7F2] transition-colors text-left"
-                >
-                  {/* Avatar */}
-                  <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                    <span className="text-primary text-sm font-semibold">
-                      {(c.contactName ?? "?")[0].toUpperCase()}
-                    </span>
-                  </div>
+          {/* Pipelines: Admisiones + Padres */}
+          <div className="lg:col-span-2 space-y-6">
 
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <p className="text-sm font-medium text-fg truncate">{c.contactName ?? c.contactPhone}</p>
-                      {c.interestStudentName && (
-                        <span className="text-xs text-fg-muted hidden sm:block">· {c.interestStudentName}</span>
-                      )}
+            {/* Pipeline de admisiones */}
+            <div className="bg-white rounded-2xl border border-border shadow-sm overflow-hidden">
+              <div className="px-6 py-4 border-b border-border flex items-center justify-between">
+                <h2 className="font-semibold text-fg text-sm">Pipeline de Admisiones</h2>
+                <span className="text-xs text-fg-muted">{admissionPipeline.length} conversaciones · click para ver detalle</span>
+              </div>
+              <div className="divide-y divide-border">
+                {admissionPipeline.length === 0 && (
+                  <p className="px-6 py-10 text-center text-fg-muted text-sm">Sin prospectos aún.</p>
+                )}
+                {admissionPipeline.slice(0, 8).map((c) => (
+                  <button
+                    key={c._id}
+                    onClick={() => setSelectedConvId(c._id as Id<"conversations">)}
+                    className="w-full px-6 py-4 flex items-center gap-4 hover:bg-[#FAF7F2] transition-colors text-left"
+                  >
+                    <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                      <span className="text-primary text-sm font-semibold">
+                        {(c.contactName ?? "?")[0].toUpperCase()}
+                      </span>
                     </div>
-                    <p className="text-xs text-fg-muted mt-0.5">
-                      {c.interestGradeLevel ?? "Grado no especificado"} · {fmtShort(c.lastMessageAt)}
-                    </p>
-                  </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-medium text-fg truncate">{c.contactName ?? c.contactPhone}</p>
+                        {c.interestStudentName && (
+                          <span className="text-xs text-fg-muted hidden sm:block">· {c.interestStudentName}</span>
+                        )}
+                      </div>
+                      <p className="text-xs text-fg-muted mt-0.5">
+                        {c.interestGradeLevel ?? "Grado no especificado"} · {fmtShort(c.lastMessageAt)}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <span className={`text-xs font-medium px-2.5 py-1 rounded-full border hidden sm:flex items-center ${STATUS_COLOR[c.status]}`}>
+                        <span className={`inline-block h-1.5 w-1.5 rounded-full mr-1.5 ${STATUS_DOT[c.status]}`} />
+                        {STATUS_LABEL[c.status]}
+                      </span>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-fg-muted">
+                        <polyline points="9 18 15 12 9 6"/>
+                      </svg>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
 
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    <span className={`text-xs font-medium px-2.5 py-1 rounded-full border hidden sm:flex items-center ${STATUS_COLOR[c.status]}`}>
-                      <span className={`inline-block h-1.5 w-1.5 rounded-full mr-1.5 ${STATUS_DOT[c.status]}`} />
-                      {STATUS_LABEL[c.status]}
-                    </span>
-                    {/* Chevron */}
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-fg-muted">
+            {/* Mensajes de Padres */}
+            <div className="bg-white rounded-2xl border border-border shadow-sm overflow-hidden">
+              <div className="px-6 py-4 border-b border-border flex items-center justify-between">
+                <h2 className="font-semibold text-fg text-sm">Mensajes de Padres</h2>
+                <span className="text-xs text-fg-muted">{parentPipeline.length} conversaciones · click para ver detalle</span>
+              </div>
+              <div className="divide-y divide-border">
+                {parentPipeline.length === 0 && (
+                  <p className="px-6 py-10 text-center text-fg-muted text-sm">Sin mensajes de padres aún.</p>
+                )}
+                {parentPipeline.slice(0, 5).map((c) => (
+                  <button
+                    key={c._id}
+                    onClick={() => setSelectedConvId(c._id as Id<"conversations">)}
+                    className="w-full px-6 py-4 flex items-center gap-4 hover:bg-[#FAF7F2] transition-colors text-left"
+                  >
+                    <div className="h-9 w-9 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
+                      <span className="text-amber-700 text-sm font-semibold">
+                        {(c.contactName ?? "?")[0].toUpperCase()}
+                      </span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-fg truncate">{c.contactName ?? c.contactPhone}</p>
+                      <p className="text-xs text-fg-muted mt-0.5">{fmtShort(c.lastMessageAt)}</p>
+                    </div>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-fg-muted flex-shrink-0">
                       <polyline points="9 18 15 12 9 6"/>
                     </svg>
-                  </div>
-                </button>
-              ))}
+                  </button>
+                ))}
+              </div>
             </div>
+
           </div>
 
           {/* Sidebar derecha */}

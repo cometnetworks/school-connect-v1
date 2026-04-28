@@ -2,6 +2,19 @@ import { internalMutation, internalQuery, mutation, query } from "./_generated/s
 import { internal } from "./_generated/api";
 import { v } from "convex/values";
 
+export const setType = internalMutation({
+  args: {
+    conversationId: v.id("conversations"),
+    type: v.union(v.literal("admission"), v.literal("parent"), v.literal("director")),
+    contactName: v.optional(v.string()),
+  },
+  handler: async (ctx, { conversationId, type, contactName }) => {
+    const patch: Record<string, unknown> = { type };
+    if (contactName) patch.contactName = contactName;
+    await ctx.db.patch(conversationId, patch);
+  },
+});
+
 export const createOrGet = internalMutation({
   args: {
     schoolId: v.id("schools"),

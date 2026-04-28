@@ -142,6 +142,11 @@ export const processMessage = internalAction({
       const isDirector = digits === dirDigits || args.contactPhone === directorPhone;
 
       if (isDirector) {
+        // Marcar conversación como tipo "director"
+        await ctx.runMutation(internal.conversations.setType, {
+          conversationId: args.conversationId,
+          type: "director",
+        });
         const pendingRelay = await ctx.runQuery(
           internal.conversations.getLatestPendingRelay,
           { schoolId: args.schoolId },
@@ -233,6 +238,12 @@ export const processMessage = internalAction({
 
     // ── Modo padre: número registrado como papá/mamá ─────────────────
     if (parentCtx) {
+      // Marcar tipo y actualizar nombre del contacto con el del padre registrado
+      await ctx.runMutation(internal.conversations.setType, {
+        conversationId: args.conversationId,
+        type: "parent",
+        contactName: parentCtx.parent.fullName ?? undefined,
+      });
       const parentName = parentCtx.parent.fullName ?? "Papá/Mamá";
       const systemPrompt = buildParentSystemPrompt(
         schoolData,

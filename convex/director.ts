@@ -18,16 +18,19 @@ export const summary = query({
       .withIndex("by_school", (q) => q.eq("schoolId", sid))
       .collect();
 
+    // Excluir conversaciones de la directora de los KPIs
+    const admissionConvs = convs.filter((c) => c.type !== "director" && c.type !== "parent");
+
     const now = Date.now();
     const weekAgo = now - 7 * 24 * 60 * 60 * 1000;
 
-    const newLeads = convs.filter((c) => c.status === "new").length;
-    const qualified = convs.filter((c) => c.status === "qualified").length;
-    const visitScheduled = convs.filter(
+    const newLeads = admissionConvs.filter((c) => c.status === "new").length;
+    const qualified = admissionConvs.filter((c) => c.status === "qualified").length;
+    const visitScheduled = admissionConvs.filter(
       (c) => c.status === "visit_scheduled",
     ).length;
-    const enrolled = convs.filter((c) => c.status === "enrolled").length;
-    const thisWeek = convs.filter((c) => c.lastMessageAt >= weekAgo).length;
+    const enrolled = admissionConvs.filter((c) => c.status === "enrolled").length;
+    const thisWeek = convs.filter((c) => c.lastMessageAt >= weekAgo && c.type !== "director").length;
 
     const visits = await ctx.db
       .query("visits")
@@ -59,7 +62,7 @@ export const summary = query({
   },
 });
 
-/** Pipeline completo de admisiones */
+/** Pipeline de admisiones (prospectos únicamente) */
 export const pipeline = query({
   args: { schoolSlug: v.string() },
   handler: async (ctx, { schoolSlug }) => {
@@ -75,6 +78,27 @@ export const pipeline = query({
       .order("desc")
       .collect();
 
-    return convs;
+    // Solo prospectos de admisiones (excluir padres y directora)
+    return convs.filter((c) => c.type !== "parent" && c.type !== "director");
+  },
+});
+
+/** Mensajes de padres de familia */
+export const parentMessages = query({
+  args: { schoolSlug: v.string() },
+  handler: async (ctx, { schoolSlug }) => {
+    const school = await ctx.db
+      .query("schools")
+      .withIndex("by_slug", (q) => q.eq("slug", schoolSlug))
+      .first();
+    if (!school) return null;
+
+    const convs = await ctx.db
+      .query("conversations")
+      .withIndex("by_school", (q) => q.eq("schoolId", school._id))
+      .order("desc")
+      .collect();
+
+    return convs.filter((c) => c.type === "parent");
   },
 });
