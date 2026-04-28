@@ -198,8 +198,36 @@ export const processMessage = internalAction({
             body: summary,
           });
         } else {
-          // Paso 2: reenviar la respuesta de la directora al padre
-          const fwdBody = `📩 *Respuesta de Dirección:*\n\n${args.inboundText}`;
+          // Paso 2: pulir el mensaje de la directora con el LLM antes de enviarlo al padre
+          const polishPrompt = `Eres el asistente de comunicación de ${schoolData.name}.
+La directora te manda una nota informal y debes convertirla en un mensaje cálido y profesional para el padre/madre de familia.
+
+Contexto del relay original:
+${pendingRelay.relayBody}
+
+Nombre del padre/madre: ${pendingRelay.contactName}
+
+Nota de la directora (texto crudo, puede ser incompleto o informal):
+"${args.inboundText}"
+
+Escribe UN mensaje directo al padre/madre en español mexicano, cálido, breve (máx 60 palabras).
+- Usa su nombre
+- Refleja la intención de la directora aunque el texto sea incompleto
+- NO uses comillas, NO expliques que es un mensaje de la directora, escríbelo en primera persona de la escuela
+- Solo devuelve el mensaje final, sin JSON ni explicaciones`;
+
+          let polishedText: string;
+          try {
+            polishedText = await callLLMRaw(polishPrompt, [], 256);
+            // Si el LLM devuelve JSON o texto raro, usar el texto crudo como fallback
+            if (polishedText.startsWith("{") || polishedText.length < 5) {
+              throw new Error("respuesta inesperada");
+            }
+          } catch {
+            polishedText = args.inboundText;
+          }
+
+          const fwdBody = `📩 *Respuesta de Dirección:*\n\n${polishedText}`;
 
           await ctx.runMutation(internal.conversations.addMessage, {
             conversationId: pendingRelay.conversationId,
