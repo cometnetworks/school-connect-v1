@@ -448,6 +448,31 @@ export const processMessage = internalAction({
       body: agentReply.text,
     });
 
+    // Si el prospecto pidió hablar con la directora, notificar por WhatsApp
+    if (agentReply.intent === "escalate" && schoolData.directorPhone) {
+      const contactName = agentReply.contact_name ?? historyData.conversation.contactName ?? "Prospecto";
+      const studentName = agentReply.student_name ?? historyData.conversation.interestStudentName;
+      const gradeLevel = agentReply.grade_level ?? historyData.conversation.interestGradeLevel;
+
+      const directorMsg =
+        `📋 *${schoolData.name} — Prospecto solicita hablar contigo*\n\n` +
+        `👤 Nombre: ${contactName}\n` +
+        `📱 Teléfono: ${args.contactPhone}\n` +
+        (studentName ? `👦 Hijo/a: ${studentName}\n` : "") +
+        (gradeLevel ? `📚 Grado de interés: ${gradeLevel}\n` : "") +
+        `\n_El agente le indicó que lo contactarás pronto._`;
+
+      try {
+        await ctx.runAction(internal.external.kapso.sendText, {
+          phoneNumberId: args.phoneNumberId,
+          to: schoolData.directorPhone,
+          body: directorMsg,
+        });
+      } catch (err) {
+        console.error("[escalate] Error notificando a directora:", err);
+      }
+    }
+
     // Enviar via Kapso
     await ctx.runAction(internal.external.kapso.sendText, {
       phoneNumberId: args.phoneNumberId,
