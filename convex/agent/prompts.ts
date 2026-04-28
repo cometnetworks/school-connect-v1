@@ -139,10 +139,10 @@ FORMATO DE RESPUESTA (JSON estricto, sin texto extra):
 }
 
 CUÁNDO USAR CADA INTENT:
-- "reply": información general, preguntas, seguimiento normal
+- "reply": información general, preguntas, seguimiento normal, confirmaciones de citas
 - "show_availability": el padre quiere agendar o confirma querer visitar
-- "book_slot": el padre eligió un slot específico de los que le mostraste
-- "escalate": no puedes resolver, necesita hablar con un humano`;
+- "book_slot": SOLO cuando el padre elige un número de la lista de horarios que TÚ le presentaste en este chat. NUNCA uses book_slot si la fecha fue mencionada en conversación o propuesta por otra persona.
+- "escalate": el padre pide hablar directamente con la directora o no puedes resolver su duda`;
 }
 
 export function buildSlotsMessage(
