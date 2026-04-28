@@ -142,11 +142,11 @@ export const processMessage = internalAction({
       const isDirector = digits === dirDigits || args.contactPhone === directorPhone;
 
       if (isDirector) {
-        // Marcar conversación como tipo "director"
-        await ctx.runMutation(internal.conversations.setType, {
+        // Marcar tipo en segundo plano — no bloquea si falla
+        ctx.runMutation(internal.conversations.setType, {
           conversationId: args.conversationId,
           type: "director",
-        });
+        }).catch((e) => console.error("[director-mode] setType error:", e));
         const pendingRelay = await ctx.runQuery(
           internal.conversations.getLatestPendingRelay,
           { schoolId: args.schoolId },
@@ -238,13 +238,13 @@ export const processMessage = internalAction({
 
     // ── Modo padre: número registrado como papá/mamá ─────────────────
     if (parentCtx) {
-      // Marcar tipo y actualizar nombre del contacto con el del padre registrado
-      await ctx.runMutation(internal.conversations.setType, {
+      const parentName = parentCtx.parent.fullName ?? "Papá/Mamá";
+      // Marcar tipo en segundo plano — no bloquea si falla
+      ctx.runMutation(internal.conversations.setType, {
         conversationId: args.conversationId,
         type: "parent",
         contactName: parentCtx.parent.fullName ?? undefined,
-      });
-      const parentName = parentCtx.parent.fullName ?? "Papá/Mamá";
+      }).catch((e) => console.error("[parent-mode] setType error:", e));
       const systemPrompt = buildParentSystemPrompt(
         schoolData,
         parentName,
@@ -274,12 +274,13 @@ export const processMessage = internalAction({
             content: m.body,
           }));
 
+      console.log("[parent-mode] parentName:", parentName, "| historyMsgs:", historyData.messages.length, "| llmMsgs:", llmMessages.length);
       let parentReply: { text: string; intent: string; relay_message: string | null };
       try {
         const raw = await callLLMRaw(systemPrompt, llmMessages, 2048);
         parentReply = JSON.parse(raw);
       } catch (err) {
-        console.error("[parent-mode] JSON parse / LLM error:", err);
+        console.error("[parent-mode] JSON parse / LLM error:", err, "| systemPromptLen:", systemPrompt.length);
         parentReply = {
           text: "Disculpa, tengo un problema técnico. Intenta de nuevo en un momento.",
           intent: "reply",
