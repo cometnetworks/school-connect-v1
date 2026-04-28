@@ -9,9 +9,10 @@ export const setType = internalMutation({
     contactName: v.optional(v.string()),
   },
   handler: async (ctx, { conversationId, type, contactName }) => {
-    const patch: Record<string, unknown> = { type };
-    if (contactName) patch.contactName = contactName;
-    await ctx.db.patch(conversationId, patch);
+    await ctx.db.patch(conversationId, {
+      type,
+      ...(contactName ? { contactName } : {}),
+    });
   },
 });
 
