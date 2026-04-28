@@ -193,6 +193,7 @@ export default defineSchema({
     body: v.string(),
     publishedAt: v.number(),
     sendViaWhatsapp: v.boolean(),
+    mediaStorageId: v.optional(v.id("_storage")),
   })
     .index("by_school", ["schoolId"])
     .index("by_group", ["groupId"]),

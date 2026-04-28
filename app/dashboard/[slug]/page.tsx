@@ -3,7 +3,7 @@
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useParams } from "next/navigation";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Id } from "@/convex/_generated/dataModel";
 
 const STATUS_LABEL: Record<string, string> = {
@@ -205,12 +205,23 @@ function PublishModal({
   onClose: () => void;
 }) {
   const publish = useMutation(api.announcements.publish);
+  const generateUploadUrl = useMutation(api.announcements.generateUploadUrl);
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [sendWA, setSendWA] = useState(false);
   const [sending, setSending] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImageFile(file);
+    setImagePreview(URL.createObjectURL(file));
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -218,11 +229,27 @@ function PublishModal({
     setSending(true);
     setError(null);
     try {
+      let mediaStorageId: Id<"_storage"> | undefined;
+
+      // Subir imagen si hay una seleccionada
+      if (imageFile) {
+        const uploadUrl = await generateUploadUrl();
+        const res = await fetch(uploadUrl, {
+          method: "POST",
+          headers: { "Content-Type": imageFile.type },
+          body: imageFile,
+        });
+        if (!res.ok) throw new Error("Error al subir la imagen");
+        const { storageId } = await res.json() as { storageId: string };
+        mediaStorageId = storageId as Id<"_storage">;
+      }
+
       await publish({
         schoolId,
         title: title.trim(),
         body: body.trim(),
         sendViaWhatsapp: sendWA,
+        mediaStorageId,
       });
       setDone(true);
       setTimeout(onClose, 2500);
@@ -269,11 +296,41 @@ function PublishModal({
                 <textarea
                   value={body}
                   onChange={(e) => setBody(e.target.value)}
-                  rows={4}
+                  rows={3}
                   placeholder="Escribe el aviso completo aquí..."
                   className="w-full rounded-xl border border-border px-3.5 py-2.5 text-sm text-fg focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary resize-none"
                 />
               </div>
+
+              {/* Imagen opcional */}
+              <div>
+                <label className="text-xs font-medium text-fg-muted block mb-1.5">Imagen (opcional)</label>
+                {imagePreview ? (
+                  <div className="relative rounded-xl overflow-hidden border border-border">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={imagePreview} alt="preview" className="w-full h-40 object-cover" />
+                    <button
+                      type="button"
+                      onClick={() => { setImageFile(null); setImagePreview(null); if (fileRef.current) fileRef.current.value = ""; }}
+                      className="absolute top-2 right-2 bg-black/50 text-white rounded-full h-6 w-6 flex items-center justify-center text-xs hover:bg-black/70"
+                    >✕</button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => fileRef.current?.click()}
+                    className="w-full border-2 border-dashed border-border rounded-xl py-4 text-sm text-fg-muted hover:border-primary/50 hover:text-primary transition-colors flex items-center justify-center gap-2"
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/>
+                      <polyline points="21 15 16 10 5 21"/>
+                    </svg>
+                    Subir imagen o flyer
+                  </button>
+                )}
+                <input ref={fileRef} type="file" accept="image/*" onChange={handleImageChange} className="hidden" />
+              </div>
+
               <label className="flex items-center gap-2.5 cursor-pointer">
                 <input
                   type="checkbox"

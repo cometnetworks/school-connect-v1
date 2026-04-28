@@ -11,29 +11,39 @@ export const notifyParents = internalAction({
     groupId: v.optional(v.id("groups")),
     title: v.string(),
     body: v.string(),
+    mediaUrl: v.optional(v.string()),
   },
-  handler: async (ctx, { schoolId, groupId, title, body }) => {
+  handler: async (ctx, { schoolId, groupId, title, body, mediaUrl }) => {
     const school = await ctx.runQuery(internal.schools.getById, { schoolId });
     if (!school?.whatsappPhoneNumberId) return;
 
     const phoneNumberId = school.whatsappPhoneNumberId;
 
-    // Obtener padres: si hay groupId, solo los del grupo; si no, todos los de la escuela
     const parents = await ctx.runQuery(internal.agent.notifier.getParentsToNotify, {
       schoolId,
       groupId,
     });
 
-    const msg = `📢 *${school.name}*\n\n*${title}*\n\n${body}`;
+    const caption = `📢 *${school.name}*\n\n*${title}*\n\n${body}`;
 
     let sent = 0;
     for (const phone of parents) {
       try {
-        await ctx.runAction(internal.external.kapso.sendText, {
-          phoneNumberId,
-          to: phone,
-          body: msg,
-        });
+        if (mediaUrl) {
+          // Enviar imagen con caption
+          await ctx.runAction(internal.external.kapso.sendImage, {
+            phoneNumberId,
+            to: phone,
+            imageUrl: mediaUrl,
+            caption,
+          });
+        } else {
+          await ctx.runAction(internal.external.kapso.sendText, {
+            phoneNumberId,
+            to: phone,
+            body: caption,
+          });
+        }
         sent++;
       } catch (err) {
         console.error(`Error enviando a ${phone}:`, err);
