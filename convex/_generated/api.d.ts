@@ -9,12 +9,18 @@
  */
 
 import type * as agent_admissions from "../agent/admissions.js";
+import type * as agent_notifier from "../agent/notifier.js";
 import type * as agent_prompts from "../agent/prompts.js";
+import type * as announcements from "../announcements.js";
 import type * as betaApplications from "../betaApplications.js";
 import type * as conversations from "../conversations.js";
+import type * as director from "../director.js";
+import type * as external_agentmail from "../external/agentmail.js";
 import type * as external_calcom from "../external/calcom.js";
 import type * as external_kapso from "../external/kapso.js";
 import type * as http from "../http.js";
+import type * as parentLookup from "../parentLookup.js";
+import type * as portal from "../portal.js";
 import type * as schools from "../schools.js";
 import type * as seed from "../seed.js";
 import type * as webhooks_calcom from "../webhooks/calcom.js";
@@ -28,12 +34,18 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   "agent/admissions": typeof agent_admissions;
+  "agent/notifier": typeof agent_notifier;
   "agent/prompts": typeof agent_prompts;
+  announcements: typeof announcements;
   betaApplications: typeof betaApplications;
   conversations: typeof conversations;
+  director: typeof director;
+  "external/agentmail": typeof external_agentmail;
   "external/calcom": typeof external_calcom;
   "external/kapso": typeof external_kapso;
   http: typeof http;
+  parentLookup: typeof parentLookup;
+  portal: typeof portal;
   schools: typeof schools;
   seed: typeof seed;
   "webhooks/calcom": typeof webhooks_calcom;

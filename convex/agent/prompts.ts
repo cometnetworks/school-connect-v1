@@ -1,5 +1,98 @@
 import { Doc } from "../_generated/dataModel";
 
+type ChildContext = {
+  student: { fullName: string; gradeLevel: string };
+  relation: string;
+  group: { name: string } | null;
+  assignments: Array<{ subject: string; title: string; dueDate: number }>;
+  grades: Array<{ subject: string; score: number; period: string }>;
+  events: Array<{ title: string; startsAt: number }>;
+  pendingInvoice: { period: string; amount: number; currency: string; dueDate: number; status: string } | null;
+  announcements: Array<{ title: string; body: string; publishedAt: number }>;
+};
+
+export function buildParentSystemPrompt(
+  school: Doc<"schools">,
+  parentName: string,
+  children: ChildContext[],
+  today: string,
+): string {
+  const childrenInfo = children.map((c) => {
+    const fmtDate = (ts: number) =>
+      new Date(ts).toLocaleDateString("es-MX", {
+        weekday: "long", day: "numeric", month: "long", timeZone: "America/Merida",
+      });
+
+    const tasks = c.assignments.length
+      ? c.assignments.map((a) => `• ${a.subject}: "${a.title}" — vence ${fmtDate(a.dueDate)}`).join("\n")
+      : "Sin tareas próximas registradas";
+
+    const grades = c.grades.length
+      ? c.grades.map((g) => `• ${g.subject}: ${g.score}`).join("\n")
+      : "Sin calificaciones registradas";
+
+    const events = c.events.length
+      ? c.events.map((e) => `• ${e.title} — ${fmtDate(e.startsAt)}`).join("\n")
+      : "Sin eventos próximos";
+
+    const announcements = c.announcements.length
+      ? c.announcements.map((a) => `• ${a.title}: ${a.body}`).join("\n")
+      : "Sin avisos recientes";
+
+    const invoice = c.pendingInvoice
+      ? `PENDIENTE: ${c.pendingInvoice.period} — vence ${fmtDate(c.pendingInvoice.dueDate)}`
+      : "Al corriente";
+
+    const tuitionPolicy = `Política de pago: primeros 10 días de cada mes. Del día 11 en adelante se cobra recargo de $120 MXN por mes.`;
+
+    return `
+ALUMNO: ${c.student.fullName} (${c.student.gradeLevel}, ${c.group?.name ?? "sin grupo"})
+Relación: ${c.relation}
+
+TAREAS PRÓXIMAS:
+${tasks}
+
+CALIFICACIONES (Bim 2):
+${grades}
+
+PRÓXIMOS EVENTOS:
+${events}
+
+AVISOS RECIENTES:
+${announcements}
+
+COLEGIATURA:
+${invoice}
+${tuitionPolicy}`;
+  }).join("\n\n---\n");
+
+  return `Eres el asistente escolar de ${school.name}, una escuela primaria en México.
+Estás hablando con ${parentName}, padre/madre de familia. Hoy es ${today}.
+
+${childrenInfo}
+
+INSTRUCCIONES:
+1. Responde siempre en español mexicano, cálido y natural. Tuteo.
+2. Respuestas cortas (máx 100 palabras) — estás en WhatsApp.
+3. Solo usa la información que tienes arriba. No inventes datos.
+4. Si preguntan algo que no tienes (notas específicas, permisos, etc.),
+   diles que lo comunicas con la maestra y queda registrado.
+5. Cuando el padre quiere agendar una cita o hablar con la maestra/dirección:
+   - Convierte los días mencionados a FECHAS ESPECÍFICAS usando "Hoy es ${today}".
+     Ejemplo: si hoy es lunes 28 y dice "jueves", escribe "jueves 1 de mayo".
+   - Incluye la fecha específica (día + número de mes) tanto en tu respuesta al padre
+     como en el relay_message, para evitar ambigüedades.
+   - Confirma con el padre la fecha exacta antes de enviar el relay.
+6. Sé proactivo: si hay colegiatura pendiente o tarea urgente, menciónalo.
+
+FORMATO DE RESPUESTA (JSON estricto, sin texto extra):
+{
+  "text": "tu respuesta al padre",
+  "intent": "reply" | "relay_teacher" | "escalate",
+  "relay_message": "mensaje para la maestra/dirección si intent=relay_teacher, con fechas específicas (día + número de mes), o null"
+}`;
+}
+
 export function buildAdmissionsSystemPrompt(
   school: Doc<"schools">,
   today: string,

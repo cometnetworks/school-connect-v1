@@ -1,6 +1,7 @@
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import BetaForm from "@/components/BetaForm";
+import DemoVideo from "@/components/DemoVideo";
 import { pricing, site } from "@/lib/site";
 
 export default function HomePage() {
@@ -106,82 +107,17 @@ function DemoSection() {
           <em className="font-normal text-fg-muted">en un minuto.</em>
         </h2>
         <p className="mx-auto mt-4 max-w-xl text-fg-muted">
-          Un padre escribe al WhatsApp de la escuela un domingo a las 9 PM.
-          Así es como respondes, agendas la visita y mantienes a la dirección
-          informada — todo en un solo flujo.
+          Una mamá escribe al WhatsApp de la escuela a las 10 PM. Así es como
+          respondes, agendas la visita y mantienes a los padres informados —
+          todo en un solo lugar.
         </p>
 
-        <div className="relative mx-auto mt-12 overflow-hidden rounded-3xl border border-border bg-bg-elevated shadow-[0_40px_80px_-40px_rgba(15,110,110,0.35)]">
-          <div className="flex items-center gap-2 border-b border-border bg-bg/60 px-5 py-3 text-left">
-            <span className="h-2.5 w-2.5 rounded-full bg-[#FF5F57]" />
-            <span className="h-2.5 w-2.5 rounded-full bg-[#FEBC2E]" />
-            <span className="h-2.5 w-2.5 rounded-full bg-[#28C840]" />
-            <span className="ml-3 flex items-center gap-2 text-xs text-fg-muted">
-              <span className="h-1.5 w-1.5 rounded-full bg-success" />
-              WhatsApp Business · Instituto Alina · en vivo
-            </span>
-          </div>
-
-          <div className="grid gap-0 sm:grid-cols-[1fr_auto]">
-            <div className="space-y-3 p-6 text-left text-sm sm:p-8">
-              <Bubble side="right">
-                Hola, ¿siguen aceptando inscripciones para 2° de primaria?
-              </Bubble>
-              <Bubble side="left">
-                ¡Hola! Sí, sí seguimos. Soy el agente del Instituto. ¿Me
-                compartes el nombre de tu hija y su edad para revisar?
-              </Bubble>
-              <Bubble side="right">Se llama Mariana, tiene 7 años.</Bubble>
-              <Bubble side="left">
-                Perfecto. Para 2° de primaria, la colegiatura es de
-                <strong> $4,800 MXN</strong> al mes (10 mensualidades) e
-                incluye comedor y dos talleres. La inscripción es por única
-                vez. ¿Te late agendar una visita esta semana?
-              </Bubble>
-              <Bubble side="right">¿Tienen martes en la mañana?</Bubble>
-              <Bubble side="left">
-                Sí. Tengo el <strong>martes 10:00 AM</strong> con la
-                directora, Miss Andrea. ¿Te lo aparto?
-              </Bubble>
-              <Bubble side="right">Sí porfa.</Bubble>
-              <Bubble side="left">
-                Listo, Mariana queda agendada el martes 10:00 AM. Te llegará
-                un recordatorio 24 horas antes. Si necesitas cambiar el
-                horario, escríbeme aquí mismo. ¡Nos vemos!
-              </Bubble>
-              <p className="pt-2 text-xs text-fg-muted">
-                Mientras tanto, la directora ya recibió la ficha de Mariana
-                en su panel.
-              </p>
-            </div>
-
-            <div className="hidden border-l border-border bg-bg/50 p-6 text-left sm:block sm:w-72">
-              <p className="text-xs font-medium uppercase tracking-widest text-primary">
-                Panel de la dirección
-              </p>
-              <div className="mt-4 rounded-xl border border-border bg-bg-elevated p-4">
-                <p className="text-xs text-fg-muted">Nueva visita agendada</p>
-                <p className="mt-1 text-sm font-semibold text-fg">
-                  Mariana · 2° primaria
-                </p>
-                <p className="mt-0.5 text-xs text-fg-muted">
-                  Martes · 10:00 AM
-                </p>
-                <p className="mt-3 text-xs text-fg-muted">Mamá: 999 ··· 4567</p>
-              </div>
-              <div className="mt-4 grid gap-2 text-xs">
-                <Stat label="Conversaciones esta semana" value="47" />
-                <Stat label="Visitas agendadas" value="9" />
-                <Stat label="Tasa de respuesta" value="100%" />
-              </div>
-            </div>
-          </div>
-        </div>
+        <DemoVideo />
 
         <div className="mt-6 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs text-fg-muted">
           <span className="flex items-center gap-1.5">
             <span className="h-1.5 w-1.5 rounded-full bg-success" />
-            Conversación real del producto
+            Producto funcionando en escuelas piloto
           </span>
           <span aria-hidden>·</span>
           <span>Responde en segundos</span>

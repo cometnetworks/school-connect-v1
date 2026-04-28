@@ -48,7 +48,10 @@ export default defineSchema({
     ),
     calComEventTypeId: v.optional(v.string()),
     whatsappPhoneNumberId: v.optional(v.string()),
-  }).index("by_slug", ["slug"]),
+    directorPhone: v.optional(v.string()),
+  })
+    .index("by_slug", ["slug"])
+    .index("by_whatsapp_phone", ["whatsappPhoneNumberId"]),
 
   users: defineTable({
     email: v.optional(v.string()),
@@ -180,7 +183,7 @@ export default defineSchema({
   announcements: defineTable({
     schoolId: v.id("schools"),
     groupId: v.optional(v.id("groups")),
-    authorUserId: v.id("users"),
+    authorUserId: v.optional(v.id("users")),
     title: v.string(),
     body: v.string(),
     publishedAt: v.number(),

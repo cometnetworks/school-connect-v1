@@ -6,7 +6,7 @@ export const getByWhatsappPhoneNumberId = internalQuery({
   handler: async (ctx, { phoneNumberId }) => {
     return await ctx.db
       .query("schools")
-      .filter((q) => q.eq(q.field("whatsappPhoneNumberId"), phoneNumberId))
+      .withIndex("by_whatsapp_phone", (q) => q.eq("whatsappPhoneNumberId", phoneNumberId))
       .first();
   },
 });
