@@ -148,10 +148,19 @@ export const processMessage = internalAction({
         );
 
         if (!pendingRelay) {
+          // Puede ser que la directora esté respondiendo a una notificación de
+          // prospecto (escalate). En ese caso solo confirmamos recepción.
+          const ackBody = "✅ Mensaje recibido. Los prospectos pendientes los puedes ver en el panel de dirección: schoolconnectmx.netlify.app/dashboard/instituto-alina";
+          await ctx.runMutation(internal.conversations.addMessage, {
+            conversationId: args.conversationId,
+            direction: "outbound",
+            sender: "agent",
+            body: ackBody,
+          });
           await ctx.runAction(internal.external.kapso.sendText, {
             phoneNumberId: args.phoneNumberId,
             to: args.contactPhone,
-            body: "No hay solicitudes pendientes de padres en este momento.",
+            body: ackBody,
           });
           return;
         }
