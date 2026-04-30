@@ -78,6 +78,37 @@ export const getAvailableSlots = internalAction({
   },
 });
 
+/** Obtiene bookings de Cal.com para uno o más event types en un rango de fechas */
+export const getBookings = internalAction({
+  args: {
+    eventTypeIds: v.array(v.string()),
+    afterStart: v.string(),
+    beforeEnd: v.string(),
+  },
+  handler: async (_ctx, { eventTypeIds, afterStart, beforeEnd }) => {
+    const params = new URLSearchParams({ afterStart, beforeEnd, take: "50" });
+    for (const id of eventTypeIds) {
+      params.append("eventTypeIds[]", id);
+    }
+
+    const res = await fetch(`${CALCOM_BASE}/bookings?${params}`, {
+      headers: calHeaders("2024-08-13"),
+    });
+
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(`Cal.com bookings failed ${res.status}: ${text}`);
+    }
+
+    const data = (await res.json()) as { status: string; data: unknown[] };
+    if (data.status !== "success") {
+      throw new Error(`Cal.com bookings error: ${JSON.stringify(data)}`);
+    }
+
+    return data.data;
+  },
+});
+
 export const createBooking = internalAction({
   args: {
     eventTypeId: v.string(),

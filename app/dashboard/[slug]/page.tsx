@@ -1,9 +1,9 @@
 "use client";
 
-import { useQuery, useMutation } from "convex/react";
+import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useParams } from "next/navigation";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { Id } from "@/convex/_generated/dataModel";
 
 const STATUS_LABEL: Record<string, string> = {
@@ -407,6 +407,175 @@ function DirectorReplyBox({ conversationId }: { conversationId: Id<"conversation
   );
 }
 
+// ── Calendario de citas ──────────────────────────────────────────────
+type CalBooking = {
+  id: string;
+  title: string;
+  start: string;
+  end: string;
+  status: string;
+  attendeeName: string;
+  attendeePhone: string;
+  eventTypeId: string;
+  type: "prospect" | "parent";
+};
+
+function CalendarWidget({ slug }: { slug: string }) {
+  const fetchBookings = useAction(api.director.fetchCalendarBookings);
+  const [weekOffset, setWeekOffset] = useState(0);
+  const [bookings, setBookings] = useState<CalBooking[]>([]);
+  const [weekStart, setWeekStart] = useState<Date | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
+
+  const load = useCallback(
+    async (offset: number) => {
+      setSyncing(true);
+      try {
+        const result = await fetchBookings({ schoolSlug: slug, weekOffset: offset });
+        setBookings(result.bookings as CalBooking[]);
+        setWeekStart(new Date(result.weekStart));
+      } catch (err) {
+        console.error("[calendar] load error:", err);
+      } finally {
+        setSyncing(false);
+        setLoading(false);
+      }
+    },
+    [fetchBookings, slug],
+  );
+
+  useEffect(() => { load(weekOffset); }, [weekOffset, load]);
+
+  const days = weekStart
+    ? Array.from({ length: 6 }, (_, i) => {
+        const d = new Date(weekStart);
+        d.setDate(d.getDate() + i);
+        return d;
+      })
+    : [];
+
+  const bookingsForDay = (day: Date) =>
+    bookings
+      .filter((b) => {
+        const bd = new Date(b.start);
+        return (
+          bd.getDate() === day.getDate() &&
+          bd.getMonth() === day.getMonth() &&
+          bd.getFullYear() === day.getFullYear()
+        );
+      })
+      .sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
+
+  const today = new Date();
+  const isToday = (d: Date) => d.toDateString() === today.toDateString();
+
+  const weekLabel = weekStart
+    ? (() => {
+        const end = new Date(weekStart);
+        end.setDate(end.getDate() + 5);
+        return `${weekStart.toLocaleDateString("es-MX", { day: "numeric", month: "short" })} – ${end.toLocaleDateString("es-MX", { day: "numeric", month: "short", year: "numeric" })}`;
+      })()
+    : "";
+
+  const prospectCount = bookings.filter((b) => b.type === "prospect").length;
+  const parentCount = bookings.filter((b) => b.type === "parent").length;
+  const DAY_NAMES = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
+
+  return (
+    <div className="bg-white rounded-2xl border border-border shadow-sm overflow-hidden">
+      {/* Header */}
+      <div className="px-6 py-4 border-b border-border flex items-center gap-3 flex-wrap">
+        <span className="text-base">📅</span>
+        <h2 className="font-semibold text-fg text-sm">Agenda de Citas</h2>
+        <span className="text-xs text-fg-muted">{weekLabel}</span>
+        <div className="ml-auto flex items-center gap-1.5">
+          <button
+            onClick={() => setWeekOffset((w) => w - 1)}
+            className="h-7 w-7 rounded-lg border border-border flex items-center justify-center text-fg-muted hover:bg-zinc-50 text-base leading-none"
+          >‹</button>
+          <button
+            onClick={() => setWeekOffset(0)}
+            className="text-xs px-2.5 py-1 rounded-lg border border-border text-fg-muted hover:bg-zinc-50"
+          >Hoy</button>
+          <button
+            onClick={() => setWeekOffset((w) => w + 1)}
+            className="h-7 w-7 rounded-lg border border-border flex items-center justify-center text-fg-muted hover:bg-zinc-50 text-base leading-none"
+          >›</button>
+          <button
+            onClick={() => load(weekOffset)}
+            disabled={syncing}
+            className="ml-1 text-xs px-2.5 py-1 rounded-lg bg-primary/8 text-primary border border-primary/20 hover:bg-primary/15 disabled:opacity-50 transition-colors"
+          >
+            {syncing ? "⟳" : "↻ Actualizar"}
+          </button>
+        </div>
+      </div>
+
+      {/* Stats rápidos */}
+      <div className="px-6 py-2 bg-zinc-50 border-b border-border flex gap-5 text-xs text-fg-muted">
+        <span><b className="text-fg">{bookings.length}</b> esta semana</span>
+        <span className="text-primary"><b>{prospectCount}</b> visitas escolar</span>
+        <span className="text-amber-600"><b>{parentCount}</b> citas con padres</span>
+      </div>
+
+      {/* Grid semanal */}
+      {loading ? (
+        <div className="h-36 flex items-center justify-center text-fg-muted text-sm gap-2">
+          <span className="h-4 w-4 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+          Cargando agenda...
+        </div>
+      ) : (
+        <div className="grid grid-cols-3 sm:grid-cols-6 divide-x divide-border">
+          {days.map((day, i) => {
+            const dayBookings = bookingsForDay(day);
+            return (
+              <div key={i} className={`flex flex-col ${isToday(day) ? "bg-primary/[0.03]" : ""}`}>
+                {/* Cabecera del día */}
+                <div className={`px-2 py-2.5 text-center border-b border-border ${isToday(day) ? "bg-primary/10" : ""}`}>
+                  <p className="text-[10px] font-semibold text-fg-muted uppercase tracking-wider">{DAY_NAMES[i]}</p>
+                  <p className={`text-xl font-bold leading-none mt-1 ${isToday(day) ? "text-primary" : "text-fg"}`}>
+                    {day.getDate()}
+                  </p>
+                </div>
+                {/* Citas del día */}
+                <div className="flex-1 p-1.5 space-y-1.5 min-h-[100px]">
+                  {dayBookings.map((b) => {
+                    const time = new Date(b.start).toLocaleTimeString("es-MX", {
+                      hour: "2-digit", minute: "2-digit", timeZone: "America/Merida",
+                    });
+                    const isProspect = b.type === "prospect";
+                    return (
+                      <div
+                        key={b.id}
+                        title={`${b.attendeeName} · ${time}`}
+                        className={`rounded-lg px-2 py-1.5 text-[11px] leading-tight ${
+                          isProspect
+                            ? "bg-primary/10 border border-primary/20 text-primary"
+                            : "bg-amber-50 border border-amber-200 text-amber-800"
+                        }`}
+                      >
+                        <p className="font-bold">{time}</p>
+                        <p className="font-medium truncate">{b.attendeeName.split(" ")[0]}</p>
+                        <p className="opacity-70 text-[10px] mt-0.5">{isProspect ? "🏫 Visita" : "🤝 Cita"}</p>
+                      </div>
+                    );
+                  })}
+                  {dayBookings.length === 0 && (
+                    <div className="flex items-center justify-center h-full min-h-[60px]">
+                      <span className="text-[10px] text-zinc-200">—</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Dashboard principal ──────────────────────────────────────────────
 export default function DirectorDashboard() {
   const { slug } = useParams<{ slug: string }>();
@@ -508,6 +677,9 @@ export default function DirectorDashboard() {
             </div>
           ))}
         </div>
+
+        {/* Calendario de citas */}
+        <CalendarWidget slug={slug} />
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
           {/* Pipelines: Admisiones + Padres */}

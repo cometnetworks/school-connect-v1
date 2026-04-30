@@ -36,6 +36,16 @@ export const patchBySlug = internalMutation({
   },
 });
 
+export const getBySlug = internalQuery({
+  args: { slug: v.string() },
+  handler: async (ctx, { slug }) => {
+    return await ctx.db
+      .query("schools")
+      .withIndex("by_slug", (q) => q.eq("slug", slug))
+      .first();
+  },
+});
+
 export const getById = internalQuery({
   args: { schoolId: v.id("schools") },
   handler: async (ctx, { schoolId }) => {

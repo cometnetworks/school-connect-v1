@@ -1,0 +1,9 @@
+{
+  "/_global-error/page": "/_global-error",
+  "/_not-found/page": "/_not-found",
+  "/dashboard/[slug]/page": "/dashboard/[slug]",
+  "/empezar/page": "/empezar",
+  "/icon.svg/route": "/icon.svg",
+  "/page": "/",
+  "/portal/[slug]/page": "/portal/[slug]"
+}
