@@ -4,7 +4,7 @@ import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useParams } from "next/navigation";
 import { Id } from "@/convex/_generated/dataModel";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 
 function fmtDate(ts: number) {
   return new Date(ts).toLocaleDateString("es-MX", {
@@ -68,6 +68,79 @@ function StudentSelector({
             </button>
           ))}
         </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Chat history ────────────────────────────────────────────────────
+function ChatHistory({ slug, studentId }: { slug: string; studentId: Id<"students"> }) {
+  const chatData = useQuery(api.portal.parentConversation, { schoolSlug: slug, studentId });
+  const bottomRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [chatData?.messages.length]);
+
+  const messages = chatData?.messages ?? [];
+
+  return (
+    <div className="md:col-span-2 bg-white rounded-2xl border border-border shadow-sm overflow-hidden">
+      <div className="px-6 py-4 border-b border-border flex items-center gap-2">
+        <span className="text-base">💬</span>
+        <h2 className="font-semibold text-fg text-sm">Mensajes con Aurora</h2>
+        <span className="ml-auto text-xs font-medium text-primary bg-primary/8 px-2 py-0.5 rounded-full border border-primary/20">
+          WhatsApp ✨
+        </span>
+      </div>
+
+      {/* Chat bubble area — WhatsApp style */}
+      <div
+        className="h-80 overflow-y-auto p-4 space-y-2"
+        style={{ background: "url('data:image/svg+xml,%3Csvg xmlns=\"http://www.w3.org/2000/svg\" width=\"60\" height=\"60\"%3E%3C/svg%3E') #e5ddd5" }}
+      >
+        {messages.length === 0 && (
+          <div className="flex h-full items-center justify-center">
+            <div className="bg-white/80 rounded-xl px-5 py-4 text-center shadow-sm">
+              <p className="text-sm font-medium text-zinc-600">Sin mensajes aún</p>
+              <p className="text-xs text-zinc-400 mt-1">
+                Escríbele a Aurora por WhatsApp<br />para ver tu historial aquí.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {messages.map((msg) => {
+          const isParent = msg.direction === "inbound";
+          const time = new Date(msg._creationTime).toLocaleTimeString("es-MX", {
+            hour: "2-digit",
+            minute: "2-digit",
+          });
+          return (
+            <div key={msg._id} className={`flex ${isParent ? "justify-end" : "justify-start"}`}>
+              <div
+                className={`max-w-[78%] rounded-2xl px-3.5 py-2 shadow-sm ${
+                  isParent
+                    ? "bg-[#dcf8c6] rounded-tr-sm"
+                    : "bg-white rounded-tl-sm"
+                }`}
+              >
+                {!isParent && (
+                  <p className="text-[11px] font-semibold text-primary mb-0.5">Aurora ✨</p>
+                )}
+                <p className="text-sm text-zinc-800 whitespace-pre-wrap leading-snug">{msg.body}</p>
+                <p className="text-[10px] text-zinc-400 text-right mt-0.5">{time}</p>
+              </div>
+            </div>
+          );
+        })}
+        <div ref={bottomRef} />
+      </div>
+
+      <div className="px-5 py-3 border-t border-border bg-zinc-50">
+        <p className="text-xs text-fg-muted text-center">
+          Para enviar mensajes, usa WhatsApp — las respuestas aparecen aquí automáticamente.
+        </p>
       </div>
     </div>
   );
@@ -241,6 +314,9 @@ function PortalHome({ slug, studentId }: { slug: string; studentId: Id<"students
               ))}
             </div>
           </div>
+
+          {/* Chat con Aurora */}
+          <ChatHistory slug={slug} studentId={studentId} />
 
           {/* Próximos eventos */}
           <div className="md:col-span-2 bg-white rounded-2xl border border-border shadow-sm overflow-hidden">

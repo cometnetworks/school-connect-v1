@@ -303,7 +303,7 @@ Escribe UN mensaje directo al padre/madre en español mexicano, cálido, breve (
           }));
 
       console.log("[parent-mode] parentName:", parentName, "| historyMsgs:", historyData.messages.length, "| llmMsgs:", llmMessages.length);
-      let parentReply: { text: string; intent: string; relay_message: string | null };
+      let parentReply: { text: string; intent: string; relay_message: string | null; slot_iso?: string | null };
       try {
         const raw = await callLLMRaw(systemPrompt, llmMessages, 2048);
         parentReply = JSON.parse(raw);
@@ -314,6 +314,57 @@ Escribe UN mensaje directo al padre/madre en español mexicano, cálido, breve (
           intent: "reply",
           relay_message: null,
         };
+      }
+
+      // ── Cal.com: cita presencial en modo padre ────────────────────────
+      if (parentReply.intent === "show_availability") {
+        const eventTypeId = schoolData.calComEventTypeId;
+        if (eventTypeId) {
+          let slots: SlotOption[] = [];
+          try {
+            slots = await ctx.runAction(internal.external.calcom.getAvailableSlots, {
+              eventTypeId,
+            });
+          } catch (err) {
+            console.error("[parent-cal] getAvailableSlots error:", err);
+          }
+          parentReply.text = buildSlotsMessage(slots);
+          // Guardar slots para el siguiente turno
+          await ctx.runMutation(internal.conversations.updateStatus, {
+            conversationId: args.conversationId,
+            status: historyData.conversation.status,
+            updates: { pendingSlots: JSON.stringify(slots) },
+          });
+        } else {
+          parentReply.text =
+            "Con gusto agenda una cita. Déjame revisar los horarios disponibles y te escribo en un momento.";
+          parentReply.intent = "reply";
+        }
+      }
+
+      if (parentReply.intent === "book_slot" && parentReply.slot_iso) {
+        const eventTypeId = schoolData.calComEventTypeId;
+        if (eventTypeId) {
+          try {
+            await ctx.runAction(internal.external.calcom.createBooking, {
+              eventTypeId,
+              startTime: parentReply.slot_iso,
+              name: parentCtx.parent.fullName ?? "Padre/Madre",
+              phone: args.contactPhone,
+              notes: `Portal de padres — ${parentCtx.children[0]?.student.fullName ?? ""}`,
+            });
+            await ctx.runMutation(internal.conversations.updateStatus, {
+              conversationId: args.conversationId,
+              status: historyData.conversation.status,
+              updates: { pendingSlots: undefined },
+            });
+          } catch (err) {
+            console.error("[parent-cal] createBooking error:", err);
+            parentReply.text =
+              "Tuve un problema al confirmar la cita. Por favor inténtalo de nuevo.";
+            parentReply.intent = "reply";
+          }
+        }
       }
 
       // Guardar respuesta al padre

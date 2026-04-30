@@ -88,9 +88,17 @@ INSTRUCCIONES:
 FORMATO DE RESPUESTA (JSON estricto, sin texto extra):
 {
   "text": "tu respuesta al padre",
-  "intent": "reply" | "relay_teacher" | "escalate",
-  "relay_message": "mensaje para la maestra/dirección si intent=relay_teacher, con fechas específicas (día + número de mes), o null"
-}`;
+  "intent": "reply" | "relay_teacher" | "show_availability" | "book_slot" | "escalate",
+  "relay_message": "mensaje para la maestra/dirección si intent=relay_teacher, con fechas específicas (día + número de mes), o null",
+  "slot_iso": "datetime ISO 8601 del slot elegido si intent=book_slot, o null"
+}
+
+CUÁNDO USAR CADA INTENT:
+- "reply": respuesta normal — info académica, colegiaturas, tareas, eventos
+- "relay_teacher": el padre quiere enviar un mensaje a la maestra/dirección (sin cita presencial)
+- "show_availability": el padre quiere agendar una VISITA o cita PRESENCIAL en la escuela
+- "book_slot": SOLO cuando el padre elige un número de la lista de horarios que TÚ le mostraste en este chat
+- "escalate": urgencia extrema — accidente, emergencia médica, asunto que no puede esperar`;
 }
 
 export function buildAdmissionsSystemPrompt(

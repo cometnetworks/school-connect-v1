@@ -95,6 +95,71 @@ export const parentHome = query({
   },
 });
 
+/**
+ * Devuelve el historial de mensajes de la conversación WhatsApp del padre/madre
+ * asociado al alumno seleccionado en el portal.
+ */
+export const parentConversation = query({
+  args: { schoolSlug: v.string(), studentId: v.id("students") },
+  handler: async (ctx, { schoolSlug, studentId }) => {
+    const school = await ctx.db
+      .query("schools")
+      .withIndex("by_slug", (q) => q.eq("slug", schoolSlug))
+      .first();
+    if (!school) return null;
+
+    const student = await ctx.db.get(studentId);
+    if (!student || student.schoolId !== school._id) return null;
+
+    // Primer padre/madre vinculado al alumno
+    const link = await ctx.db
+      .query("parentStudentLinks")
+      .withIndex("by_student", (q) => q.eq("studentId", studentId))
+      .first();
+    if (!link) return { messages: [], parentName: "" };
+
+    const parentUser = await ctx.db.get(link.parentUserId);
+    if (!parentUser?.phone) return { messages: [], parentName: parentUser?.fullName ?? "" };
+
+    // Variantes del teléfono para tolerar formatos distintos
+    const digits = parentUser.phone.replace(/\D/g, "");
+    const phoneVariants = [
+      parentUser.phone,
+      `+${digits}`,
+      digits,
+      ...(digits.startsWith("52") && digits.length === 12 ? [digits.slice(2)] : []),
+    ];
+
+    let conv = null;
+    for (const phone of [...new Set(phoneVariants)]) {
+      conv = await ctx.db
+        .query("conversations")
+        .withIndex("by_phone", (q) => q.eq("contactPhone", phone))
+        .filter((q) => q.eq(q.field("schoolId"), school._id))
+        .first();
+      if (conv) break;
+    }
+
+    if (!conv) return { messages: [], parentName: parentUser.fullName };
+
+    const allMessages = await ctx.db
+      .query("messages")
+      .withIndex("by_conversation", (q) => q.eq("conversationId", conv._id))
+      .order("asc")
+      .collect();
+
+    // Filtrar notas internas (relays, confirmaciones de dirección)
+    const messages = allMessages.filter(
+      (m) =>
+        !m.body.startsWith("📋") &&
+        !m.body.startsWith("✅ Mensaje enviado") &&
+        !m.body.startsWith("✅ Mensaje recibido"),
+    );
+
+    return { messages, parentName: parentUser.fullName };
+  },
+});
+
 /** Listado de alumnos de una escuela (para seleccionar en demo) */
 export const studentsBySchool = query({
   args: { schoolSlug: v.string() },
