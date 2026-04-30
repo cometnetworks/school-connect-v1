@@ -17,6 +17,7 @@ export const patchBySlug = internalMutation({
   args: {
     slug: v.string(),
     calComEventTypeId: v.optional(v.string()),
+    calComParentEventTypeId: v.optional(v.string()),
     directorPhone: v.optional(v.string()),
     whatsappPhoneNumberId: v.optional(v.string()),
   },

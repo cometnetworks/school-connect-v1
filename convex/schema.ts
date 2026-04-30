@@ -46,7 +46,8 @@ export default defineSchema({
         faqs: v.optional(v.string()),
       }),
     ),
-    calComEventTypeId: v.optional(v.string()),
+    calComEventTypeId: v.optional(v.string()),        // prospectos (visita escolar)
+    calComParentEventTypeId: v.optional(v.string()),   // padres (cita con dirección/maestra)
     whatsappPhoneNumberId: v.optional(v.string()),
     directorPhone: v.optional(v.string()),
   })

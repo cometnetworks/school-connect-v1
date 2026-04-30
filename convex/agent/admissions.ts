@@ -318,7 +318,7 @@ Escribe UN mensaje directo al padre/madre en español mexicano, cálido, breve (
 
       // ── Cal.com: cita presencial en modo padre ────────────────────────
       if (parentReply.intent === "show_availability") {
-        const eventTypeId = schoolData.calComEventTypeId;
+        const eventTypeId = schoolData.calComParentEventTypeId ?? schoolData.calComEventTypeId;
         if (eventTypeId) {
           let slots: SlotOption[] = [];
           try {
@@ -343,7 +343,7 @@ Escribe UN mensaje directo al padre/madre en español mexicano, cálido, breve (
       }
 
       if (parentReply.intent === "book_slot" && parentReply.slot_iso) {
-        const eventTypeId = schoolData.calComEventTypeId;
+        const eventTypeId = schoolData.calComParentEventTypeId ?? schoolData.calComEventTypeId;
         if (eventTypeId) {
           try {
             await ctx.runAction(internal.external.calcom.createBooking, {
