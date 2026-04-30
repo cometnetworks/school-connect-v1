@@ -1,9 +1,0 @@
-{
-  "/_global-error/page": "app/_global-error/page.js",
-  "/_not-found/page": "app/_not-found/page.js",
-  "/dashboard/[slug]/page": "app/dashboard/[slug]/page.js",
-  "/empezar/page": "app/empezar/page.js",
-  "/icon.svg/route": "app/icon.svg/route.js",
-  "/page": "app/page.js",
-  "/portal/[slug]/page": "app/portal/[slug]/page.js"
-}
