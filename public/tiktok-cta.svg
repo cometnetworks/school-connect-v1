@@ -1,0 +1,48 @@
+<svg viewBox="0 0 1080 320" xmlns="http://www.w3.org/2000/svg">
+
+  <!-- Fondo degradado transparente hacia negro (overlay sobre video) -->
+  <defs>
+    <linearGradient id="fadeUp" x1="0" y1="1" x2="0" y2="0">
+      <stop offset="0%" stop-color="#000000" stop-opacity="0.80"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <rect width="1080" height="320" fill="url(#fadeUp)"/>
+
+  <!-- Pill ámbar "COMENTA BETA" -->
+  <rect x="240" y="30" width="600" height="140" rx="70" fill="#F4B740"/>
+
+  <!-- Texto COMENTA -->
+  <text x="490" y="88"
+        font-family="'Inter','Helvetica Neue',Arial,sans-serif"
+        font-size="34" font-weight="600" fill="#0F6E6E"
+        text-anchor="middle" letter-spacing="6">COMENTA</text>
+
+  <!-- Texto BETA -->
+  <text x="490" y="152"
+        font-family="'Inter','Helvetica Neue',Arial,sans-serif"
+        font-size="78" font-weight="900" fill="#0F6E6E"
+        text-anchor="middle" letter-spacing="-3">BETA</text>
+
+  <!-- Flecha apuntando abajo (SVG puro) -->
+  <g transform="translate(740, 75)">
+    <!-- Cuerpo de la flecha -->
+    <rect x="22" y="0" width="22" height="55" rx="8" fill="#0F6E6E"/>
+    <!-- Punta de la flecha -->
+    <polygon points="0,50 32.5,88 65,50" fill="#0F6E6E"/>
+  </g>
+
+  <!-- Logo mark (abajo izquierda) -->
+  <rect x="48" y="200" width="84" height="84" rx="16" fill="#0F6E6E"/>
+  <path d="M 106 221 A 19 19 0 1 0 106 263" stroke="#FAF7F2" stroke-width="8.5" stroke-linecap="round" fill="none"/>
+  <circle cx="99" cy="242" r="6" fill="#F4B740"/>
+
+  <!-- Wordmark -->
+  <text x="148" y="234"
+        font-family="'Inter','Helvetica Neue',Arial,sans-serif"
+        font-size="28" font-weight="700" fill="#ffffff" letter-spacing="-0.5">School Connect</text>
+  <text x="148" y="266"
+        font-family="'Inter','Helvetica Neue',Arial,sans-serif"
+        font-size="18" font-weight="400" fill="#ffffff" fill-opacity="0.65">schoolconnectmx.netlify.app</text>
+
+</svg>

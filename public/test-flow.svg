@@ -1,0 +1,160 @@
+<svg viewBox="0 0 900 720" xmlns="http://www.w3.org/2000/svg" font-family="'Inter','Helvetica Neue',Arial,sans-serif">
+
+  <!-- Fondo -->
+  <rect width="900" height="720" fill="#FAF7F2"/>
+
+  <!-- Título -->
+  <text x="450" y="38" font-size="20" font-weight="700" fill="#0F6E6E" text-anchor="middle" letter-spacing="-0.5">School Connect — Prueba Full del Sistema</text>
+  <text x="450" y="58" font-size="13" font-weight="400" fill="#0F6E6E" fill-opacity="0.6" text-anchor="middle">Diagrama de flujo para participantes</text>
+
+  <!-- Línea divisora -->
+  <line x1="40" y1="70" x2="860" y2="70" stroke="#0F6E6E" stroke-opacity="0.15" stroke-width="1"/>
+
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <!-- ROW 1: WhatsApp (entrada) -->
+  <!-- ══════════════════════════════════════════════════════════ -->
+
+  <!-- Nodo WhatsApp central -->
+  <rect x="350" y="88" width="200" height="52" rx="26" fill="#25D366"/>
+  <text x="450" y="109" font-size="13" font-weight="700" fill="#fff" text-anchor="middle">WhatsApp</text>
+  <text x="450" y="127" font-size="11" fill="#fff" fill-opacity="0.85" text-anchor="middle">+52 56 4179 5226</text>
+
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <!-- ROW 2: Tres participantes que escriben -->
+  <!-- ══════════════════════════════════════════════════════════ -->
+
+  <!-- Cristhian — prospecto -->
+  <rect x="30" y="200" width="220" height="90" rx="14" fill="#fff" stroke="#0F6E6E" stroke-width="1.5"/>
+  <rect x="30" y="200" width="220" height="28" rx="14" fill="#0F6E6E"/>
+  <rect x="30" y="214" width="220" height="14" fill="#0F6E6E"/>
+  <text x="140" y="219" font-size="12" font-weight="700" fill="#fff" text-anchor="middle">🙋 Cristhian (prospecto)</text>
+  <text x="140" y="243" font-size="11" fill="#555" text-anchor="middle">529 131 236 755</text>
+  <text x="140" y="261" font-size="10" fill="#777" text-anchor="middle">Interesado en inscribir a su hijo</text>
+  <text x="140" y="276" font-size="10" fill="#777" text-anchor="middle">→ No está en la base de datos</text>
+
+  <!-- Aurora — mamá -->
+  <rect x="340" y="200" width="220" height="90" rx="14" fill="#fff" stroke="#F4B740" stroke-width="1.5"/>
+  <rect x="340" y="200" width="220" height="28" rx="14" fill="#F4B740"/>
+  <rect x="340" y="214" width="220" height="14" fill="#F4B740"/>
+  <text x="450" y="219" font-size="12" font-weight="700" fill="#0F6E6E" text-anchor="middle">👩 Aurora (mamá de Zaíd)</text>
+  <text x="450" y="243" font-size="11" fill="#555" text-anchor="middle">529 999 802 2013</text>
+  <text x="450" y="261" font-size="10" fill="#777" text-anchor="middle">Mamá registrada en el sistema</text>
+  <text x="450" y="276" font-size="10" fill="#777" text-anchor="middle">→ Portal en: /portal/instituto-alina</text>
+
+  <!-- Alina — directora -->
+  <rect x="650" y="200" width="220" height="90" rx="14" fill="#fff" stroke="#0F6E6E" stroke-width="1.5"/>
+  <rect x="650" y="200" width="220" height="28" rx="14" fill="#0F6E6E"/>
+  <rect x="650" y="214" width="220" height="14" fill="#0F6E6E"/>
+  <text x="760" y="219" font-size="12" font-weight="700" fill="#fff" text-anchor="middle">👩‍💼 Alina (Directora)</text>
+  <text x="760" y="243" font-size="11" fill="#555" text-anchor="middle">525 614 159 461</text>
+  <text x="760" y="261" font-size="10" fill="#777" text-anchor="middle">Recibe alertas del sistema</text>
+  <text x="760" y="276" font-size="10" fill="#777" text-anchor="middle">→ Dashboard: /dashboard/instituto-alina</text>
+
+  <!-- Flechas de participantes → WhatsApp -->
+  <!-- Cristhian → WhatsApp -->
+  <line x1="230" y1="220" x2="348" y2="130" stroke="#0F6E6E" stroke-width="1.5" stroke-dasharray="5,4"/>
+  <polygon points="348,130 340,138 354,137" fill="#0F6E6E"/>
+
+  <!-- Aurora → WhatsApp -->
+  <line x1="450" y1="200" x2="450" y2="142" stroke="#F4B740" stroke-width="1.5" stroke-dasharray="5,4"/>
+  <polygon points="450,142 444,152 456,152" fill="#F4B740"/>
+
+  <!-- Alina → WhatsApp -->
+  <line x1="670" y1="220" x2="554" y2="130" stroke="#0F6E6E" stroke-width="1.5" stroke-dasharray="5,4"/>
+  <polygon points="554,130 560,138 546,137" fill="#0F6E6E"/>
+
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <!-- ROW 3: Agente Aurora detecta el modo -->
+  <!-- ══════════════════════════════════════════════════════════ -->
+
+  <!-- Nodo Agente IA -->
+  <rect x="330" y="330" width="240" height="50" rx="10" fill="#0F6E6E" fill-opacity="0.08" stroke="#0F6E6E" stroke-width="1.5"/>
+  <text x="450" y="351" font-size="13" font-weight="700" fill="#0F6E6E" text-anchor="middle">🤖 Agente Aurora (IA)</text>
+  <text x="450" y="369" font-size="11" fill="#0F6E6E" fill-opacity="0.8" text-anchor="middle">Detecta el modo según el número</text>
+
+  <!-- WhatsApp → Agente -->
+  <line x1="450" y1="140" x2="450" y2="330" stroke="#0F6E6E" stroke-width="1.5"/>
+  <polygon points="450,330 444,318 456,318" fill="#0F6E6E"/>
+
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <!-- ROW 4: Tres flujos según modo -->
+  <!-- ══════════════════════════════════════════════════════════ -->
+
+  <!-- MODO ADMISIONES -->
+  <rect x="30" y="430" width="220" height="130" rx="12" fill="#fff" stroke="#0F6E6E" stroke-width="1.5"/>
+  <rect x="30" y="430" width="220" height="32" rx="12" fill="#0F6E6E"/>
+  <rect x="30" y="450" width="220" height="12" fill="#0F6E6E"/>
+  <text x="140" y="451" font-size="12" font-weight="700" fill="#fff" text-anchor="middle">🏫 Modo Admisiones</text>
+  <text x="140" y="478" font-size="10.5" fill="#333" text-anchor="middle" font-weight="600">Cristhian recibe:</text>
+  <text x="140" y="495" font-size="10" fill="#555" text-anchor="middle">• Info de la escuela y colegiaturas</text>
+  <text x="140" y="511" font-size="10" fill="#555" text-anchor="middle">• Agendado de visita con Cal.com</text>
+  <text x="140" y="527" font-size="10" fill="#555" text-anchor="middle">• Aparece en Pipeline del dashboard</text>
+  <text x="140" y="543" font-size="10" fill="#0F6E6E" text-anchor="middle" font-weight="600">→ Alina ve la visita en calendario</text>
+
+  <!-- MODO PADRE -->
+  <rect x="340" y="430" width="220" height="130" rx="12" fill="#fff" stroke="#F4B740" stroke-width="1.5"/>
+  <rect x="340" y="430" width="220" height="32" rx="12" fill="#F4B740"/>
+  <rect x="340" y="450" width="220" height="12" fill="#F4B740"/>
+  <text x="450" y="451" font-size="12" font-weight="700" fill="#0F6E6E" text-anchor="middle">👨‍👩‍👦 Modo Padre</text>
+  <text x="450" y="478" font-size="10.5" fill="#333" text-anchor="middle" font-weight="600">Aurora puede preguntar:</text>
+  <text x="450" y="495" font-size="10" fill="#555" text-anchor="middle">• Calificaciones de Zaíd</text>
+  <text x="450" y="511" font-size="10" fill="#555" text-anchor="middle">• Tareas y eventos próximos</text>
+  <text x="450" y="527" font-size="10" fill="#555" text-anchor="middle">• Agendar cita con dirección</text>
+  <text x="450" y="543" font-size="10" fill="#0F6E6E" text-anchor="middle" font-weight="600">→ Relay de mensajes a Directora</text>
+
+  <!-- MODO DIRECTOR -->
+  <rect x="650" y="430" width="220" height="130" rx="12" fill="#fff" stroke="#0F6E6E" stroke-width="1.5"/>
+  <rect x="650" y="430" width="220" height="32" rx="12" fill="#0F6E6E"/>
+  <rect x="650" y="450" width="220" height="12" fill="#0F6E6E"/>
+  <text x="760" y="451" font-size="12" font-weight="700" fill="#fff" text-anchor="middle">👩‍💼 Modo Directora</text>
+  <text x="760" y="478" font-size="10.5" fill="#333" text-anchor="middle" font-weight="600">Alina recibe y puede:</text>
+  <text x="760" y="495" font-size="10" fill="#555" text-anchor="middle">• Ver solicitud del padre/prospecto</text>
+  <text x="760" y="511" font-size="10" fill="#555" text-anchor="middle">• Responder por WhatsApp</text>
+  <text x="760" y="527" font-size="10" fill="#555" text-anchor="middle">• Aurora recibe la respuesta</text>
+  <text x="760" y="543" font-size="10" fill="#0F6E6E" text-anchor="middle" font-weight="600">→ Dashboard para ver todo</text>
+
+  <!-- Agente → cada modo -->
+  <!-- → Admisiones -->
+  <line x1="370" y1="355" x2="200" y2="430" stroke="#0F6E6E" stroke-width="1.5"/>
+  <polygon points="200,430 208,420 194,422" fill="#0F6E6E"/>
+  <rect x="238" y="375" width="96" height="18" rx="9" fill="#0F6E6E"/>
+  <text x="286" y="387" font-size="9.5" fill="#fff" text-anchor="middle" font-weight="600">número nuevo</text>
+
+  <!-- → Padre -->
+  <line x1="450" y1="380" x2="450" y2="430" stroke="#F4B740" stroke-width="1.5"/>
+  <polygon points="450,430 444,418 456,418" fill="#F4B740"/>
+  <rect x="390" y="398" width="120" height="18" rx="9" fill="#F4B740"/>
+  <text x="450" y="410" font-size="9.5" fill="#0F6E6E" text-anchor="middle" font-weight="600">número registrado</text>
+
+  <!-- → Director -->
+  <line x1="530" y1="355" x2="700" y2="430" stroke="#0F6E6E" stroke-width="1.5"/>
+  <polygon points="700,430 692,420 706,422" fill="#0F6E6E"/>
+  <rect x="566" y="375" width="100" height="18" rx="9" fill="#0F6E6E"/>
+  <text x="616" y="387" font-size="9.5" fill="#fff" text-anchor="middle" font-weight="600">número directora</text>
+
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <!-- ROW 5: Portal / Dashboard -->
+  <!-- ══════════════════════════════════════════════════════════ -->
+
+  <!-- Flecha Aurora → Portal -->
+  <line x1="450" y1="560" x2="450" y2="620" stroke="#F4B740" stroke-width="1.5" stroke-dasharray="4,3"/>
+  <polygon points="450,620 444,610 456,610" fill="#F4B740"/>
+
+  <!-- Portal de padres -->
+  <rect x="330" y="620" width="240" height="50" rx="10" fill="#F4B740" fill-opacity="0.15" stroke="#F4B740" stroke-width="1.5"/>
+  <text x="450" y="641" font-size="12" font-weight="700" fill="#0F6E6E" text-anchor="middle">📱 Portal de Padres</text>
+  <text x="450" y="659" font-size="10" fill="#555" text-anchor="middle">schoolconnectmx.netlify.app/portal/instituto-alina</text>
+
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <!-- Footer -->
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <line x1="40" y1="690" x2="860" y2="690" stroke="#0F6E6E" stroke-opacity="0.15" stroke-width="1"/>
+
+  <!-- Logo mark pequeño -->
+  <rect x="40" y="698" width="22" height="22" rx="4" fill="#0F6E6E"/>
+  <path d="M 55 703 A 5 5 0 1 0 55 715" stroke="#FAF7F2" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+  <circle cx="53" cy="709" r="1.8" fill="#F4B740"/>
+  <text x="68" y="713" font-size="11" fill="#0F6E6E" font-weight="600">School Connect</text>
+  <text x="860" y="713" font-size="10" fill="#888" text-anchor="end">Prueba del sistema · Mayo 2026</text>
+
+</svg>

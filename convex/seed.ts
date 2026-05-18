@@ -867,6 +867,25 @@ export const seedEventsAndAnnouncements = mutation({
   },
 });
 
+/** Registra el teléfono de la Mtra. Carmen López (maestra de Zaíd) */
+export const setCarmenPhone = mutation({
+  args: {},
+  handler: async (ctx) => {
+    // Buscar por email
+    const carmen = await ctx.db
+      .query("users")
+      .withIndex("by_email", (q) => q.eq("email", "carmen.lopez@institutoalina.mx"))
+      .first();
+    if (!carmen) return { note: "Carmen no encontrada — corre seedAlinaDemo primero" };
+
+    // Verificar si ya tiene el teléfono correcto
+    if (carmen.phone === "529901030316") return { note: "Ya tiene el teléfono correcto", id: carmen._id };
+
+    await ctx.db.patch(carmen._id, { phone: "529901030316" });
+    return { updated: true, id: carmen._id, phone: "529901030316" };
+  },
+});
+
 /** Registra el teléfono de la directora demo en Instituto Alina */
 export const setAlinaDirectorPhone = mutation({
   args: {},

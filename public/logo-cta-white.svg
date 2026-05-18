@@ -1,0 +1,19 @@
+<svg viewBox="0 0 420 100" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="School Connect">
+  <!-- Fondo blanco con borde sutil -->
+  <rect width="420" height="100" rx="20" fill="#FAF7F2"/>
+  <rect x="1" y="1" width="418" height="98" rx="19" fill="none" stroke="#0F6E6E" stroke-width="2" stroke-opacity="0.2"/>
+
+  <!-- Logo mark -->
+  <rect x="12" y="12" width="76" height="76" rx="14" fill="#0F6E6E"/>
+  <path d="M 68.05 29.95 A 18 18 0 1 0 68.05 70.05" stroke="#FAF7F2" stroke-width="8" stroke-linecap="round" fill="none"/>
+  <circle cx="62" cy="50" r="5.5" fill="#F4B740"/>
+
+  <!-- Texto "School Connect" -->
+  <text x="108" y="42" font-family="'Inter', 'Helvetica Neue', Arial, sans-serif" font-size="22" font-weight="700" fill="#0F6E6E" letter-spacing="-0.5">School Connect</text>
+
+  <!-- Subtítulo -->
+  <text x="108" y="68" font-family="'Inter', 'Helvetica Neue', Arial, sans-serif" font-size="15" font-weight="400" fill="#0F6E6E" fill-opacity="0.6" letter-spacing="0">Comunicación escolar con IA</text>
+
+  <!-- Punto ámbar decorativo -->
+  <circle cx="393" cy="28" r="7" fill="#F4B740"/>
+</svg>
