@@ -867,6 +867,209 @@ export const seedEventsAndAnnouncements = mutation({
   },
 });
 
+/**
+ * Enriquece la información de Instituto Alina con datos reales y detallados:
+ * calendario SEP 2025-2026, costos completos, juntas y vida escolar.
+ * Idempotente — se puede correr múltiples veces.
+ */
+export const enrichAlinaInfo = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const alina = await ctx.db
+      .query("schools")
+      .withIndex("by_slug", (q) => q.eq("slug", "instituto-alina"))
+      .first();
+    if (!alina) return { note: "Instituto Alina no encontrado" };
+
+    await ctx.db.patch(alina._id, {
+      admissionsInfo: {
+        // ── Oferta educativa ───────────────────────────────────────────
+        gradesOffered: "1° a 6° de primaria (ciclo completo de educación básica primaria)",
+
+        educationModel:
+          "Educación primaria bilingüe español-inglés con certificación Progrentis reconocida internacionalmente. " +
+          "Sistema SEP con plan de estudios enriquecido. Enfoque en desarrollo cognitivo, dominio del inglés desde 1° grado " +
+          "y habilidades del siglo XXI. Grupos reducidos (máx 20 alumnos) para atención personalizada.",
+
+        schedule:
+          "Lunes a viernes de 7:00 AM a 3:00 PM. " +
+          "Horario extendido opcional de cuidado hasta las 4:00 PM (cupo limitado, costo adicional). " +
+          "Los viernes de Consejo Técnico Escolar no hay clases para los alumnos (aprox. 1 vez al mes, se avisa con anticipación).",
+
+        differentiators:
+          "✓ Bilingüe español-inglés desde 1° grado. " +
+          "✓ Certificación Progrentis con reconocimiento internacional. " +
+          "✓ Grupos pequeños (máx 20 alumnos) para atención personalizada. " +
+          "✓ Instalaciones modernas: laboratorio de cómputo, biblioteca, canchas deportivas. " +
+          "✓ Talleres extracurriculares: ajedrez, danza, robótica (costo adicional). " +
+          "✓ Sistema de comunicación digital con padres vía WhatsApp y portal web.",
+
+        // ── Costos detallados ──────────────────────────────────────────
+        costsDetail:
+          "INSCRIPCIÓN (pago único anual, ciclo 2025-2026):\n" +
+          "• 1° y 2° primaria: $6,500 MXN\n" +
+          "• 3° y 4° primaria: $7,000 MXN\n" +
+          "• 5° y 6° primaria: $7,500 MXN\n\n" +
+          "COLEGIATURA MENSUAL (10 mensualidades: agosto a mayo):\n" +
+          "• 1° primaria: $2,000 MXN/mes\n" +
+          "• 2° primaria: $2,200 MXN/mes\n" +
+          "• 3° primaria: $2,400 MXN/mes\n" +
+          "• 4° primaria: $2,400 MXN/mes\n" +
+          "• 5° primaria: $2,600 MXN/mes\n" +
+          "• 6° primaria: $2,800 MXN/mes\n\n" +
+          "POLÍTICA DE PAGO:\n" +
+          "• Colegiatura: primeros 10 días de cada mes.\n" +
+          "• Del día 11 en adelante: recargo de $120 MXN.\n" +
+          "• Descuento por pago puntual los primeros 5 días: $100 MXN.\n" +
+          "• Descuento hermanos inscritos: 10% en la colegiatura del segundo hijo.\n\n" +
+          "ÚTILES ESCOLARES:\n" +
+          "• Lista de útiles se entrega al inscribirse (costo aproximado $800-1,200 MXN según grado).\n" +
+          "• Libros de texto SEP gratuitos provistos por la escuela.\n" +
+          "• Libro de inglés Progrentis: incluido en inscripción.\n\n" +
+          "UNIFORME:\n" +
+          "• Uniforme diario (pants azul marino + polo blanco con logo): $1,200 MXN aprox.\n" +
+          "• Uniforme de deportes (pants gris + playera gris): $850 MXN aprox.\n" +
+          "• Se adquiere directamente con el proveedor autorizado (datos al inscribirse).\n\n" +
+          "EXTRACURRICULARES OPCIONALES (cobro aparte):\n" +
+          "• Ajedrez: $350 MXN/mes\n" +
+          "• Danza folclórica: $400 MXN/mes\n" +
+          "• Robótica: $500 MXN/mes\n" +
+          "• Cuidado extendido (3-4 PM): $800 MXN/mes",
+
+        // ── Calendario escolar SEP 2025-2026 ──────────────────────────
+        schoolCalendar:
+          "CICLO ESCOLAR 2025-2026:\n" +
+          "• Inicio de clases: 25 de agosto de 2025\n" +
+          "• Fin de ciclo: 26 de junio de 2026\n\n" +
+          "PERÍODOS VACACIONALES:\n" +
+          "• Vacaciones de diciembre: 22 de diciembre 2025 al 9 de enero 2026\n" +
+          "• Semana Santa: 30 de marzo al 11 de abril de 2026\n\n" +
+          "DÍAS FESTIVOS SIN CLASES (oficiales SEP):\n" +
+          "• 16 de septiembre 2025 — Día de la Independencia\n" +
+          "• 20 de noviembre 2025 — Revolución Mexicana\n" +
+          "• 1 de enero 2026 — Año Nuevo\n" +
+          "• 3 de febrero 2026 — Día de la Constitución (puente)\n" +
+          "• 16 de marzo 2026 — Natalicio de Benito Juárez (puente)\n" +
+          "• 30 de abril 2026 — Día del Niño (evento escolar, no hay clases regulares)\n" +
+          "• 15 de mayo 2026 — Día del Maestro (sin clases)\n" +
+          "• 1 de mayo 2026 — Día del Trabajo\n\n" +
+          "BIMESTRES (períodos de evaluación):\n" +
+          "• 1er Bimestre: 25 agosto – 17 octubre 2025\n" +
+          "• 2do Bimestre: 20 octubre – 19 diciembre 2025\n" +
+          "• 3er Bimestre: 12 enero – 13 marzo 2026\n" +
+          "• 4to Bimestre: 16 marzo – 22 mayo 2026\n" +
+          "• 5to Bimestre: 25 mayo – 26 junio 2026\n\n" +
+          "CONSEJOS TÉCNICOS ESCOLARES (viernes sin clases para alumnos, aprox.):\n" +
+          "• 26 de septiembre 2025\n" +
+          "• 31 de octubre 2025\n" +
+          "• 30 de enero 2026\n" +
+          "• 27 de febrero 2026\n" +
+          "• 24 de abril 2026\n" +
+          "• 29 de mayo 2026\n" +
+          "(Se confirma con circular oficial cada mes)",
+
+        // ── Juntas de padres y evaluaciones ───────────────────────────
+        parentMeetings:
+          "JUNTAS DE PADRES DE FAMILIA (obligatorias):\n" +
+          "• Junta de inicio de ciclo: viernes 22 de agosto de 2025, 5:00 PM\n" +
+          "• Junta 1er bimestre: viernes 17 de octubre de 2025, 5:00 PM\n" +
+          "• Junta 2do bimestre: viernes 19 de diciembre de 2025, 1:00 PM\n" +
+          "• Junta 3er bimestre: viernes 13 de marzo de 2026, 5:00 PM\n" +
+          "• Junta 4to bimestre: viernes 22 de mayo de 2026, 5:00 PM\n" +
+          "• Junta de fin de ciclo: viernes 26 de junio de 2026, 10:00 AM\n\n" +
+          "ENTREGA DE BOLETAS:\n" +
+          "• 1er bimestre: semana del 20 al 24 de octubre de 2025\n" +
+          "• 2do bimestre: semana del 22 al 19 de diciembre de 2025 (antes de vacaciones)\n" +
+          "• 3er bimestre: semana del 16 al 20 de marzo de 2026\n" +
+          "• 4to bimestre: semana del 25 al 29 de mayo de 2026\n" +
+          "• 5to bimestre / fin de ciclo: 26 de junio de 2026\n\n" +
+          "CITAS CON MAESTRAS (Mtra. Carmen López, grupo 2°A):\n" +
+          "• Martes y jueves de 1:15 PM a 2:00 PM (previa cita)\n" +
+          "• Se agenda vía WhatsApp al sistema de comunicación de la escuela.\n\n" +
+          "CITAS CON DIRECCIÓN:\n" +
+          "• Lunes, miércoles y viernes de 12:00 PM a 2:00 PM\n" +
+          "• Se agenda vía WhatsApp o en la recepción de la escuela.\n\n" +
+          "EVALUACIONES (fechas aproximadas por bimestre):\n" +
+          "• 1er bimestre: 13-17 de octubre 2025\n" +
+          "• 2do bimestre: 15-19 de diciembre 2025\n" +
+          "• 3er bimestre: 9-13 de marzo 2026\n" +
+          "• 4to bimestre: 18-22 de mayo 2026\n" +
+          "• 5to bimestre: 22-26 de junio 2026",
+
+        // ── Vida escolar ───────────────────────────────────────────────
+        schoolLife:
+          "EVENTOS ESCOLARES IMPORTANTES 2025-2026:\n" +
+          "• Semana de bienvenida: 25-29 agosto 2025\n" +
+          "• Desfile 16 de septiembre: participación de alumnos (circular previa)\n" +
+          "• Festival de Halloween/Día de Muertos: 31 octubre 2025\n" +
+          "• Festival de Navidad: 19 de diciembre 2025, 10:00 AM\n" +
+          "• Día del Amor y la Amistad: 14 febrero 2026 (evento interno)\n" +
+          "• Día del Niño: 30 abril 2026, festival con actividades especiales\n" +
+          "• Día del Maestro: 15 mayo 2026\n" +
+          "• Kermés de fin de ciclo: junio 2026 (fecha por confirmar)\n" +
+          "• Clausura y ceremonia de graduación 6°: 26 junio 2026\n\n" +
+          "SERVICIOS INCLUIDOS:\n" +
+          "• Seguro escolar de accidentes incluido en la colegiatura.\n" +
+          "• Acceso al portal digital para padres (calificaciones, tareas, avisos).\n" +
+          "• Comunicación directa con maestros vía WhatsApp escolar.\n" +
+          "• Sanitización diaria de instalaciones.\n\n" +
+          "COMITÉ DE PADRES:\n" +
+          "• Se elige en la junta de inicio de ciclo (agosto).\n" +
+          "• Coordina eventos especiales y apoya proyectos de mejora.\n\n" +
+          "REGLAMENTO ESCOLAR:\n" +
+          "• Uniforme obligatorio de lunes a jueves. Viernes: uniforme deportivo.\n" +
+          "• Puntualidad: entrada máxima 7:15 AM (posterior a esa hora se registra retardo).\n" +
+          "• Dispositivos electrónicos: no permitidos para alumnos durante clases.\n" +
+          "• Salida: solo con adulto autorizado registrado en la escuela.",
+
+        // ── Requisitos ─────────────────────────────────────────────────
+        requirements:
+          "DOCUMENTOS PARA INSCRIPCIÓN:\n" +
+          "• Acta de nacimiento original + 2 copias\n" +
+          "• CURP del alumno (impresa)\n" +
+          "• Comprobante de domicilio reciente (máx 3 meses)\n" +
+          "• Certificado o constancia del último grado cursado\n" +
+          "• Cartilla de vacunación completa (copia)\n" +
+          "• 4 fotografías tamaño infantil a color\n" +
+          "• Identificación oficial del padre/madre o tutor\n" +
+          "• Comprobante de pago de inscripción\n\n" +
+          "PROCESO DE ADMISIÓN:\n" +
+          "1. Visita de conocimiento (presencial, 45 min) — sin costo.\n" +
+          "2. Solicitud de inscripción y entrega de documentos.\n" +
+          "3. Evaluación de ubicación de grado (si viene de otra escuela).\n" +
+          "4. Pago de inscripción para reservar lugar.\n" +
+          "5. Entrega de lista de útiles y datos de proveedor de uniforme.",
+
+        // ── Visitas ────────────────────────────────────────────────────
+        visitInstructions:
+          "Las visitas son de lunes a viernes de 8:00 AM a 1:00 PM. " +
+          "Duran aproximadamente 45 minutos. " +
+          "La directora te recibe personalmente para mostrarte las instalaciones, " +
+          "presentarte con los maestros y resolver todas tus dudas. " +
+          "No hay costo y no necesitas traer documentos para la visita. " +
+          "Solo agenda tu horario por este WhatsApp y te confirmamos.",
+
+        // ── FAQs ───────────────────────────────────────────────────────
+        faqs:
+          "¿Tienen transporte escolar? No contamos con transporte propio, pero te podemos recomendar servicio privado de camionetas en la zona.\n" +
+          "¿Cuántos alumnos hay por salón? Máximo 20 alumnos por grupo para garantizar atención personalizada.\n" +
+          "¿El inglés es desde 1°? Sí, inmersión bilingüe desde primer grado con maestro nativo o bilingüe certificado.\n" +
+          "¿Se aceptan alumnos a mitad de ciclo? Sí, sujeto a disponibilidad de lugar en el grado. Se hace evaluación de nivel.\n" +
+          "¿Tienen descuento para hermanos? Sí, 10% de descuento en la colegiatura del segundo hijo inscrito.\n" +
+          "¿Cómo se comunican los avisos? Por WhatsApp a través del sistema escolar y en el portal de padres.\n" +
+          "¿El seguro escolar cubre qué? Accidentes dentro y fuera del plantel durante horario escolar. No incluye enfermedades.\n" +
+          "¿Cuándo inicia el siguiente ciclo escolar? 25 de agosto de 2025. Inscripciones abiertas desde marzo.\n" +
+          "¿Tienen prepa o secundaria? Solo primaria (1° a 6°). Al terminar 6° te orientamos con secundarias afines a nuestro modelo.",
+
+        tuitionRanges:
+          "$2,000 a $2,800 MXN/mes según grado. Inscripción: $6,500 a $7,500 MXN. 10 mensualidades por ciclo.",
+      },
+    });
+
+    return { updated: true, school: alina.name };
+  },
+});
+
 /** Registra el teléfono de la Mtra. Carmen López (maestra de Zaíd) */
 export const setCarmenPhone = mutation({
   args: {},

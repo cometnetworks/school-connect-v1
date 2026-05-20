@@ -44,6 +44,14 @@ export default defineSchema({
         differentiators: v.optional(v.string()),
         visitInstructions: v.optional(v.string()),
         faqs: v.optional(v.string()),
+        // Costos detallados
+        costsDetail: v.optional(v.string()),
+        // Calendario escolar: periodos, vacaciones, días sin clases
+        schoolCalendar: v.optional(v.string()),
+        // Juntas de padres y evaluaciones
+        parentMeetings: v.optional(v.string()),
+        // Vida escolar: eventos, uniforme, servicios
+        schoolLife: v.optional(v.string()),
       }),
     ),
     calComEventTypeId: v.optional(v.string()),        // prospectos (visita escolar)
