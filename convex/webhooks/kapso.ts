@@ -23,24 +23,56 @@ type KapsoWebhookPayload = {
   is_new_conversation?: boolean;
 };
 
+async function hmacSha256Hex(secret: string, body: string): Promise<string> {
+  const key = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  const sig = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(body));
+  return Array.from(new Uint8Array(sig), (b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+function timingSafeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
+
 export const handleKapsoWebhook = httpAction(async (ctx, request) => {
-  // Verificación de firma Kapso (cuando tengan el webhook secret configurado)
-  const webhookSecret = process.env.KAPSO_WEBHOOK_SECRET;
-  if (webhookSecret) {
-    const signature = request.headers.get("x-kapso-signature") ?? "";
-    if (!signature || signature !== webhookSecret) {
-      return new Response("Unauthorized", { status: 401 });
-    }
-  }
+  const rawBody = await request.text();
 
   let payload: KapsoWebhookPayload;
   try {
-    payload = (await request.json()) as KapsoWebhookPayload;
+    payload = JSON.parse(rawBody) as KapsoWebhookPayload;
   } catch {
     return new Response("Bad Request", { status: 400 });
   }
 
+  // Firma de Kapso: X-Webhook-Signature = HMAC-SHA256(cuerpo, secreto) en hex.
+  // Sus ejemplos firman JSON.stringify(payload); probamos ambas formas.
+  const webhookSecret = process.env.KAPSO_WEBHOOK_SECRET;
+  let signatureVerified = false;
+  if (webhookSecret) {
+    const signature = (request.headers.get("x-webhook-signature") ?? "").trim().toLowerCase();
+    const candidates = await Promise.all([
+      hmacSha256Hex(webhookSecret, rawBody),
+      hmacSha256Hex(webhookSecret, JSON.stringify(payload)),
+    ]);
+    signatureVerified = signature !== "" && candidates.some((c) => timingSafeEqual(c, signature));
+    if (!signatureVerified) {
+      console.warn(`[kapso-webhook] firma inválida (header presente: ${signature !== ""})`);
+      return new Response("Unauthorized", { status: 401 });
+    }
+  }
+
   const { message, phone_number_id, conversation: kapsoConversation } = payload;
+  console.log(
+    `[kapso-webhook] phone_number_id=${phone_number_id} direction=${message?.kapso?.direction} type=${message?.type} from=${message?.from?.slice(-4)}`,
+  );
 
   // Solo procesamos mensajes inbound de texto/audio/imagen
   if (
@@ -71,11 +103,16 @@ export const handleKapsoWebhook = httpAction(async (ctx, request) => {
   // Código de acceso al portal (OTP inverso): no pasa por el agente ni se guarda
   const loginCode = inboundText.toUpperCase().match(/\bSC-[A-Z0-9]{6}\b/)?.[0];
   if (loginCode) {
-    const reply = await ctx.runMutation(internal.auth.verifyLoginCode, {
-      schoolId: school._id,
-      phone: contactPhone,
-      code: loginCode,
-    });
+    // Sin firma verificada no hay garantía de que el remitente sea real:
+    // no se otorga acceso (el resto del agente sí sigue funcionando)
+    const reply = signatureVerified
+      ? await ctx.runMutation(internal.auth.verifyLoginCode, {
+          schoolId: school._id,
+          phone: contactPhone,
+          code: loginCode,
+        })
+      : "El acceso por WhatsApp está en mantenimiento. Intenta más tarde o contacta a la dirección.";
+    if (!signatureVerified) console.warn("[kapso-webhook] código de acceso rechazado: KAPSO_WEBHOOK_SECRET no configurado");
     await ctx.scheduler.runAfter(0, internal.external.kapso.sendText, {
       phoneNumberId: phone_number_id,
       to: contactPhone,
