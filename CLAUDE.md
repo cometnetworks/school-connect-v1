@@ -8,7 +8,7 @@ Piloto: 2 escuelas en Mérida (Instituto Alina, Little Genius), expansión a 10.
 - Convex (DB reactiva, multi-tenant por `schoolId`)
 - Kapso.ai para WhatsApp Business
 - Cal.com para agendado de visitas
-- OpenRouter (Claude Sonnet 4.5 / Haiku 4.5); migrar a Anthropic directo después
+- Anthropic API directo (modelo en env `LLM_MODEL_PRIMARY` de Convex)
 - Netlify para deploy
 
 ## Notas críticas
@@ -16,6 +16,21 @@ Piloto: 2 escuelas en Mérida (Instituto Alina, Little Genius), expansión a 10.
 - Tailwind v4: tokens se declaran en `app/globals.css` con `@theme inline`. Las clases (`bg-primary`, `text-fg`, etc.) se generan desde ahí.
 - Convex requiere `npx convex dev` corriendo en otra terminal para regenerar `_generated/`.
 - El directorio padre del proyecto contiene espacios y mayúsculas; npm rechazó el nombre. El código vive en `school-connect/` (subdirectorio).
+
+## Deployments
+- Convex **prod** `fantastic-sockeye-138`: lo usan Netlify y el webhook de Kapso.
+- Convex **dev** `scrupulous-retriever-232`: default de `.env.local` y de `npx convex run`.
+- Deploy a prod: `npx convex deploy -y`; datos en prod: `npx convex run <fn> --prod`.
+- Netlify solo construye Next.js; Convex se despliega aparte.
+
+## Acceso (portal y dashboard)
+- OTP inverso por WhatsApp (`convex/auth.ts`): el portal genera un código `SC-XXXXXX`,
+  el usuario lo envía al WhatsApp de la escuela y el webhook verifica su número.
+  No requiere plantillas de Meta.
+- Roles: `director` (teléfono = `schools.directorPhone`) y `parent` (usuario con `parentStudentLinks`).
+- Toda query/mutation/action pública recibe `sessionToken` y valida con `convex/lib/session.ts`.
+  Funciones de mantenimiento (`seed.ts`, etc.) son `internal*` y solo corren por CLI.
+- `schools.whatsappNumber` es el número del link wa.me (hoy el sandbox de Kapso).
 
 ## Convenciones
 - Cada tabla con datos sensibles tiene `schoolId` y un índice por escuela.

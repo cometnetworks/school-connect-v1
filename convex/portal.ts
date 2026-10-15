@@ -1,18 +1,18 @@
 import { query } from "./_generated/server";
 import { v } from "convex/values";
+import { canAccessStudent, getSchoolSession } from "./lib/session";
+import { phoneVariants } from "./lib/phone";
 
 /** Vista principal del portal de padres — datos de un alumno */
 export const parentHome = query({
-  args: { schoolSlug: v.string(), studentId: v.id("students") },
-  handler: async (ctx, { schoolSlug, studentId }) => {
-    const school = await ctx.db
-      .query("schools")
-      .withIndex("by_slug", (q) => q.eq("slug", schoolSlug))
-      .first();
-    if (!school) return null;
+  args: { schoolSlug: v.string(), studentId: v.id("students"), sessionToken: v.string() },
+  handler: async (ctx, { schoolSlug, studentId, sessionToken }) => {
+    const auth = await getSchoolSession(ctx, sessionToken, schoolSlug);
+    if (!auth || !(await canAccessStudent(ctx, auth.session, studentId))) return null;
+    const { school } = auth;
 
     const student = await ctx.db.get(studentId);
-    if (!student || student.schoolId !== school._id) return null;
+    if (!student) return null;
 
     const sid = school._id;
 
@@ -83,7 +83,7 @@ export const parentHome = query({
       .take(3);
 
     return {
-      school,
+      school: { _id: school._id, name: school.name, slug: school.slug },
       student,
       groupId,
       announcements,
@@ -100,38 +100,25 @@ export const parentHome = query({
  * asociado al alumno seleccionado en el portal.
  */
 export const parentConversation = query({
-  args: { schoolSlug: v.string(), studentId: v.id("students") },
-  handler: async (ctx, { schoolSlug, studentId }) => {
-    const school = await ctx.db
-      .query("schools")
-      .withIndex("by_slug", (q) => q.eq("slug", schoolSlug))
-      .first();
-    if (!school) return null;
+  args: { schoolSlug: v.string(), studentId: v.id("students"), sessionToken: v.string() },
+  handler: async (ctx, { schoolSlug, studentId, sessionToken }) => {
+    const auth = await getSchoolSession(ctx, sessionToken, schoolSlug);
+    if (!auth || !(await canAccessStudent(ctx, auth.session, studentId))) return null;
+    const { school, session } = auth;
 
-    const student = await ctx.db.get(studentId);
-    if (!student || student.schoolId !== school._id) return null;
-
-    // Primer padre/madre vinculado al alumno
-    const link = await ctx.db
-      .query("parentStudentLinks")
-      .withIndex("by_student", (q) => q.eq("studentId", studentId))
-      .first();
-    if (!link) return { messages: [], parentName: "" };
-
-    const parentUser = await ctx.db.get(link.parentUserId);
+    // Un padre ve su propia conversación; dirección ve la del primer padre vinculado
+    let parentUser = session.userId ? await ctx.db.get(session.userId) : null;
+    if (session.role === "director") {
+      const link = await ctx.db
+        .query("parentStudentLinks")
+        .withIndex("by_student", (q) => q.eq("studentId", studentId))
+        .first();
+      parentUser = link ? await ctx.db.get(link.parentUserId) : null;
+    }
     if (!parentUser?.phone) return { messages: [], parentName: parentUser?.fullName ?? "" };
 
-    // Variantes del teléfono para tolerar formatos distintos
-    const digits = parentUser.phone.replace(/\D/g, "");
-    const phoneVariants = [
-      parentUser.phone,
-      `+${digits}`,
-      digits,
-      ...(digits.startsWith("52") && digits.length === 12 ? [digits.slice(2)] : []),
-    ];
-
     let conv = null;
-    for (const phone of [...new Set(phoneVariants)]) {
+    for (const phone of phoneVariants(parentUser.phone)) {
       conv = await ctx.db
         .query("conversations")
         .withIndex("by_phone", (q) => q.eq("contactPhone", phone))
@@ -160,18 +147,28 @@ export const parentConversation = query({
   },
 });
 
-/** Listado de alumnos de una escuela (para seleccionar en demo) */
+/** Alumnos visibles para la sesión: sus hijos (padre) o toda la escuela (dirección) */
 export const studentsBySchool = query({
-  args: { schoolSlug: v.string() },
-  handler: async (ctx, { schoolSlug }) => {
-    const school = await ctx.db
-      .query("schools")
-      .withIndex("by_slug", (q) => q.eq("slug", schoolSlug))
-      .first();
-    if (!school) return [];
-    return await ctx.db
-      .query("students")
-      .withIndex("by_school", (q) => q.eq("schoolId", school._id))
-      .take(20);
+  args: { schoolSlug: v.string(), sessionToken: v.string() },
+  handler: async (ctx, { schoolSlug, sessionToken }) => {
+    const auth = await getSchoolSession(ctx, sessionToken, schoolSlug);
+    if (!auth) return [];
+    const { school, session } = auth;
+
+    if (session.role === "director") {
+      return await ctx.db
+        .query("students")
+        .withIndex("by_school", (q) => q.eq("schoolId", school._id))
+        .take(200);
+    }
+    if (!session.userId) return [];
+    const links = await ctx.db
+      .query("parentStudentLinks")
+      .withIndex("by_parent", (q) => q.eq("parentUserId", session.userId!))
+      .collect();
+    const students = await Promise.all(links.map((l) => ctx.db.get(l.studentId)));
+    return students.filter(
+      (st): st is NonNullable<typeof st> => st !== null && st.schoolId === school._id && st.isActive,
+    );
   },
 });

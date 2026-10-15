@@ -1,6 +1,6 @@
-import { mutation, internalMutation } from "./_generated/server";
+import { internalMutation } from "./_generated/server";
 
-export const insertAlina = mutation({
+export const insertAlina = internalMutation({
   args: {},
   handler: async (ctx) => {
     const existing = await ctx.db
@@ -42,7 +42,7 @@ export const insertAlina = mutation({
 });
 
 /** Seed completo de datos demo para el Dashboard y Portal */
-export const seedDemo = mutation({
+export const seedDemo = internalMutation({
   args: {},
   handler: async (ctx) => {
     // 1. Escuela
@@ -339,7 +339,7 @@ export const seedDemo = mutation({
 });
 
 /** Fix: quita el whatsappPhoneNumberId de Santa Cruz para que Alina sea la única en el webhook */
-export const fixSantaCruzPhone = mutation({
+export const fixSantaCruzPhone = internalMutation({
   args: {},
   handler: async (ctx) => {
     const santaCruz = await ctx.db
@@ -353,7 +353,7 @@ export const fixSantaCruzPhone = mutation({
 });
 
 /** Debug: muestra el contactPhone exacto de las últimas conversaciones */
-export const debugPhones = mutation({
+export const debugPhones = internalMutation({
   args: {},
   handler: async (ctx) => {
     const school = await ctx.db
@@ -379,7 +379,7 @@ export const debugPhones = mutation({
 });
 
 /** Debug: verifica la cadena completa del lookup de padres */
-export const debugParentLookup = mutation({
+export const debugParentLookup = internalMutation({
   args: {},
   handler: async (ctx) => {
     // 1. ¿Existe Aurora con el teléfono correcto?
@@ -417,7 +417,7 @@ export const debugParentLookup = mutation({
 });
 
 /** Corrige el teléfono de Aurora al formato que envía Kapso (sin +) */
-export const fixAuroraPhone = mutation({
+export const fixAuroraPhone = internalMutation({
   args: {},
   handler: async (ctx) => {
     // Buscar con "+" y actualizar a sin "+"
@@ -438,7 +438,7 @@ export const fixAuroraPhone = mutation({
 });
 
 /** Agrega mensajes demo a las conversaciones existentes (idempotente) */
-export const seedMessages = mutation({
+export const seedMessages = internalMutation({
   args: {},
   handler: async (ctx) => {
     const school = await ctx.db
@@ -501,7 +501,7 @@ export const seedMessages = mutation({
  * - Aurora Oscoy (mamá, +52 999 802 2013)
  * - Instituto Santa Cruz (escuela ficticia para Cristhian como prospecto)
  */
-export const seedAlinaDemo = mutation({
+export const seedAlinaDemo = internalMutation({
   args: {},
   handler: async (ctx) => {
     const now = Date.now();
@@ -714,7 +714,7 @@ export const seedAlinaDemo = mutation({
 });
 
 /** Debug: muestra TODAS las escuelas y su whatsappPhoneNumberId */
-export const debugAllSchools = mutation({
+export const debugAllSchools = internalMutation({
   args: {},
   handler: async (ctx) => {
     const schools = await ctx.db.query("schools").collect();
@@ -728,7 +728,7 @@ export const debugAllSchools = mutation({
 });
 
 /** Debug: busca conversaciones de Aurora en CUALQUIER escuela */
-export const debugAuroraConversations = mutation({
+export const debugAuroraConversations = internalMutation({
   args: {},
   handler: async (ctx) => {
     // Buscar por teléfono con y sin "+"
@@ -756,7 +756,7 @@ export const debugAuroraConversations = mutation({
 });
 
 /** Fuerza el whatsappPhoneNumberId de Alina y elimina de Santa Cruz */
-export const forceFixPhoneRouting = mutation({
+export const forceFixPhoneRouting = internalMutation({
   args: {},
   handler: async (ctx) => {
     const ALINA_PHONE_ID = "597907523413541";
@@ -786,7 +786,7 @@ export const forceFixPhoneRouting = mutation({
 });
 
 /** Seed de eventos escolares y avisos para el demo */
-export const seedEventsAndAnnouncements = mutation({
+export const seedEventsAndAnnouncements = internalMutation({
   args: {},
   handler: async (ctx) => {
     const school = await ctx.db
@@ -872,7 +872,7 @@ export const seedEventsAndAnnouncements = mutation({
  * calendario SEP 2025-2026, costos completos, juntas y vida escolar.
  * Idempotente — se puede correr múltiples veces.
  */
-export const enrichAlinaInfo = mutation({
+export const enrichAlinaInfo = internalMutation({
   args: {},
   handler: async (ctx) => {
     const alina = await ctx.db
@@ -1069,7 +1069,7 @@ export const enrichAlinaInfo = mutation({
 });
 
 /** Registra el teléfono de la Mtra. Carmen López (maestra de Zaíd) */
-export const setCarmenPhone = mutation({
+export const setCarmenPhone = internalMutation({
   args: {},
   handler: async (ctx) => {
     // Buscar por email
@@ -1088,7 +1088,7 @@ export const setCarmenPhone = mutation({
 });
 
 /** Registra el teléfono de la directora demo en Instituto Alina */
-export const setAlinaDirectorPhone = mutation({
+export const setAlinaDirectorPhone = internalMutation({
   args: {},
   handler: async (ctx) => {
     const alina = await ctx.db
@@ -1107,7 +1107,7 @@ export const setAlinaDirectorPhone = mutation({
  * No borra nada: los datos del ciclo anterior quedan como historial.
  * Idempotente — si ya existe el grupo 3° A 2026-2027, no hace nada.
  */
-export const refreshDemo2026 = mutation({
+export const refreshDemo2026 = internalMutation({
   args: {},
   handler: async (ctx) => {
     // Fechas absolutas en hora de Mérida (UTC-6)

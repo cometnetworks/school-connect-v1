@@ -68,6 +68,38 @@ export const handleKapsoWebhook = httpAction(async (ctx, request) => {
     return new Response("ok");
   }
 
+  // Código de acceso al portal (OTP inverso): no pasa por el agente ni se guarda
+  const loginCode = inboundText.toUpperCase().match(/\bSC-[A-Z0-9]{6}\b/)?.[0];
+  if (loginCode) {
+    const reply = await ctx.runMutation(internal.auth.verifyLoginCode, {
+      schoolId: school._id,
+      phone: contactPhone,
+      code: loginCode,
+    });
+    await ctx.scheduler.runAfter(0, internal.external.kapso.sendText, {
+      phoneNumberId: phone_number_id,
+      to: contactPhone,
+      body: reply,
+    });
+    return new Response("ok", { status: 200 });
+  }
+
+  const command = inboundText.toUpperCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+  if (command === "CERRAR SESION") {
+    const revoked = await ctx.runMutation(internal.auth.revokeSessionsByPhone, {
+      schoolId: school._id,
+      phone: contactPhone,
+    });
+    await ctx.scheduler.runAfter(0, internal.external.kapso.sendText, {
+      phoneNumberId: phone_number_id,
+      to: contactPhone,
+      body: revoked > 0
+        ? "🔒 Listo, cerramos todos tus accesos al portal. Para volver a entrar genera un código nuevo."
+        : "No tenías sesiones abiertas en el portal.",
+    });
+    return new Response("ok", { status: 200 });
+  }
+
   // Crea o recupera la conversación en Convex
   const conversationId = await ctx.runMutation(
     internal.conversations.createOrGet,

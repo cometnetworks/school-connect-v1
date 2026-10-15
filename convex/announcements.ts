@@ -1,17 +1,20 @@
-import { mutation, query } from "./_generated/server";
+import { internalQuery, mutation } from "./_generated/server";
 import { internal } from "./_generated/api";
-import { v } from "convex/values";
+import { ConvexError, v } from "convex/values";
+import { getSessionByToken } from "./lib/session";
 
 /** Genera una URL firmada para subir un archivo a Convex Storage */
 export const generateUploadUrl = mutation({
-  args: {},
-  handler: async (ctx) => {
+  args: { sessionToken: v.string() },
+  handler: async (ctx, { sessionToken }) => {
+    const session = await getSessionByToken(ctx, sessionToken);
+    if (session?.role !== "director") throw new ConvexError("No autorizado");
     return await ctx.storage.generateUploadUrl();
   },
 });
 
 /** Devuelve la URL pública de un archivo en Convex Storage */
-export const getFileUrl = query({
+export const getFileUrl = internalQuery({
   args: { storageId: v.id("_storage") },
   handler: async (ctx, { storageId }) => {
     return await ctx.storage.getUrl(storageId);
@@ -21,15 +24,21 @@ export const getFileUrl = query({
 /** Publica un aviso y notifica a los padres por WhatsApp si sendViaWhatsapp=true */
 export const publish = mutation({
   args: {
-    schoolId: v.id("schools"),
+    sessionToken: v.string(),
     groupId: v.optional(v.id("groups")),
-    authorUserId: v.optional(v.id("users")),
     title: v.string(),
     body: v.string(),
     sendViaWhatsapp: v.boolean(),
     mediaStorageId: v.optional(v.id("_storage")),
   },
-  handler: async (ctx, args) => {
+  handler: async (ctx, { sessionToken, ...fields }) => {
+    const session = await getSessionByToken(ctx, sessionToken);
+    if (session?.role !== "director") throw new ConvexError("No autorizado");
+    if (fields.groupId) {
+      const group = await ctx.db.get(fields.groupId);
+      if (group?.schoolId !== session.schoolId) throw new ConvexError("Grupo inválido");
+    }
+    const args = { ...fields, schoolId: session.schoolId, authorUserId: session.userId };
     const id = await ctx.db.insert("announcements", {
       ...args,
       publishedAt: Date.now(),

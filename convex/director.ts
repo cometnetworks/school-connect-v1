@@ -1,6 +1,7 @@
 import { action, query } from "./_generated/server";
 import { internal } from "./_generated/api";
-import { v } from "convex/values";
+import { ConvexError, v } from "convex/values";
+import { getDirectorSession } from "./lib/session";
 
 type CalBookingRaw = {
   uid: string;
@@ -29,6 +30,17 @@ type CalendarResult = {
   weekStart: string;
 };
 
+/** Medianoche de la fecha YYYY-MM-DD en la zona horaria indicada, como instante UTC */
+function localMidnight(ymd: string, timeZone: string): Date {
+  const offsetName =
+    new Intl.DateTimeFormat("en-US", { timeZone, timeZoneName: "longOffset" })
+      .formatToParts(new Date(`${ymd}T12:00:00Z`))
+      .find((p) => p.type === "timeZoneName")?.value ?? "GMT";
+  const m = offsetName.match(/GMT([+-]\d{2}):?(\d{2})?/);
+  const offset = m ? `${m[1]}:${m[2] ?? "00"}` : "+00:00";
+  return new Date(`${ymd}T00:00:00${offset}`);
+}
+
 /**
  * Obtiene los bookings de Cal.com para la semana indicada.
  * weekOffset: 0 = semana actual, -1 = anterior, +1 = siguiente.
@@ -36,9 +48,13 @@ type CalendarResult = {
 export const fetchCalendarBookings = action({
   args: {
     schoolSlug: v.string(),
+    sessionToken: v.string(),
     weekOffset: v.optional(v.number()),
   },
-  handler: async (ctx, { schoolSlug, weekOffset = 0 }): Promise<CalendarResult> => {
+  handler: async (ctx, { schoolSlug, sessionToken, weekOffset = 0 }): Promise<CalendarResult> => {
+    const auth = await ctx.runQuery(internal.auth.validateSession, { schoolSlug, sessionToken });
+    if (auth?.role !== "director") throw new ConvexError("No autorizado");
+
     const school = await ctx.runQuery(internal.schools.getBySlug, { slug: schoolSlug });
     if (!school) return { bookings: [], weekStart: new Date().toISOString() };
 
@@ -50,16 +66,16 @@ export const fetchCalendarBookings = action({
       return { bookings: [], weekStart: new Date().toISOString() };
     }
 
-    // Calcular lunes de la semana objetivo
-    const today = new Date();
-    const dayOfWeek = today.getDay();
+    // Lunes de la semana objetivo en la zona horaria de la escuela
+    // (Convex corre en UTC; sin esto la semana se recorre un día en México)
+    const timeZone = school.timezone || "America/Merida";
+    const todayLocal = new Intl.DateTimeFormat("en-CA", { timeZone }).format(new Date()); // YYYY-MM-DD
+    const todayNoon = new Date(`${todayLocal}T12:00:00Z`);
+    const dayOfWeek = todayNoon.getUTCDay();
     const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-    const monday = new Date(today);
-    monday.setDate(monday.getDate() + diffToMonday + weekOffset * 7);
-    monday.setHours(0, 0, 0, 0);
-    const sunday = new Date(monday);
-    sunday.setDate(sunday.getDate() + 6);
-    sunday.setHours(23, 59, 59, 999);
+    todayNoon.setUTCDate(todayNoon.getUTCDate() + diffToMonday + weekOffset * 7);
+    const monday = localMidnight(todayNoon.toISOString().slice(0, 10), timeZone);
+    const sunday = new Date(monday.getTime() + 7 * 24 * 60 * 60 * 1000 - 1);
 
     try {
       const raw = (await ctx.runAction(internal.external.calcom.getBookings, {
@@ -94,13 +110,11 @@ export const fetchCalendarBookings = action({
 
 /** Resumen ejecutivo para el panel del director */
 export const summary = query({
-  args: { schoolSlug: v.string() },
-  handler: async (ctx, { schoolSlug }) => {
-    const school = await ctx.db
-      .query("schools")
-      .withIndex("by_slug", (q) => q.eq("slug", schoolSlug))
-      .first();
-    if (!school) return null;
+  args: { schoolSlug: v.string(), sessionToken: v.string() },
+  handler: async (ctx, { schoolSlug, sessionToken }) => {
+    const auth = await getDirectorSession(ctx, sessionToken, schoolSlug);
+    if (!auth) return null;
+    const { school } = auth;
 
     const sid = school._id;
 
@@ -155,13 +169,11 @@ export const summary = query({
 
 /** Pipeline de admisiones (prospectos únicamente) */
 export const pipeline = query({
-  args: { schoolSlug: v.string() },
-  handler: async (ctx, { schoolSlug }) => {
-    const school = await ctx.db
-      .query("schools")
-      .withIndex("by_slug", (q) => q.eq("slug", schoolSlug))
-      .first();
-    if (!school) return null;
+  args: { schoolSlug: v.string(), sessionToken: v.string() },
+  handler: async (ctx, { schoolSlug, sessionToken }) => {
+    const auth = await getDirectorSession(ctx, sessionToken, schoolSlug);
+    if (!auth) return null;
+    const { school } = auth;
 
     const convs = await ctx.db
       .query("conversations")
@@ -176,13 +188,11 @@ export const pipeline = query({
 
 /** Mensajes de padres de familia */
 export const parentMessages = query({
-  args: { schoolSlug: v.string() },
-  handler: async (ctx, { schoolSlug }) => {
-    const school = await ctx.db
-      .query("schools")
-      .withIndex("by_slug", (q) => q.eq("slug", schoolSlug))
-      .first();
-    if (!school) return null;
+  args: { schoolSlug: v.string(), sessionToken: v.string() },
+  handler: async (ctx, { schoolSlug, sessionToken }) => {
+    const auth = await getDirectorSession(ctx, sessionToken, schoolSlug);
+    if (!auth) return null;
+    const { school } = auth;
 
     const convs = await ctx.db
       .query("conversations")

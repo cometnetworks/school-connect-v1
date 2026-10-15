@@ -1,6 +1,7 @@
 import { internalMutation, internalQuery, mutation, query } from "./_generated/server";
 import { internal } from "./_generated/api";
-import { v } from "convex/values";
+import { ConvexError, v } from "convex/values";
+import { getDirectorSession, getSessionByToken } from "./lib/session";
 
 export const setType = internalMutation({
   args: {
@@ -94,12 +95,14 @@ export const updateStatus = internalMutation({
   },
 });
 
-/** Query pública para el panel del director */
+/** Detalle de conversación para el panel de dirección */
 export const getDetail = query({
-  args: { conversationId: v.id("conversations") },
-  handler: async (ctx, { conversationId }) => {
+  args: { conversationId: v.id("conversations"), sessionToken: v.string() },
+  handler: async (ctx, { conversationId, sessionToken }) => {
+    const session = await getSessionByToken(ctx, sessionToken);
+    if (session?.role !== "director") return null;
     const conversation = await ctx.db.get(conversationId);
-    if (!conversation) return null;
+    if (!conversation || conversation.schoolId !== session.schoolId) return null;
     const messages = await ctx.db
       .query("messages")
       .withIndex("by_conversation", (q) => q.eq("conversationId", conversationId))
@@ -113,11 +116,15 @@ export const replyAsHuman = mutation({
   args: {
     conversationId: v.id("conversations"),
     body: v.string(),
-    phoneNumberId: v.string(),
+    sessionToken: v.string(),
   },
   handler: async (ctx, args) => {
+    const session = await getSessionByToken(ctx, args.sessionToken);
+    if (session?.role !== "director") throw new ConvexError("No autorizado");
     const conv = await ctx.db.get(args.conversationId);
-    if (!conv?.contactPhone) return;
+    if (!conv?.contactPhone || conv.schoolId !== session.schoolId) return;
+    const school = await ctx.db.get(conv.schoolId);
+    if (!school?.whatsappPhoneNumberId) throw new ConvexError("La escuela no tiene WhatsApp configurado");
     await ctx.db.patch(args.conversationId, { lastMessageAt: Date.now() });
     await ctx.db.insert("messages", {
       conversationId: args.conversationId,
@@ -126,7 +133,7 @@ export const replyAsHuman = mutation({
       body: args.body,
     });
     await ctx.scheduler.runAfter(0, internal.external.kapso.sendText, {
-      phoneNumberId: args.phoneNumberId,
+      phoneNumberId: school.whatsappPhoneNumberId,
       to: conv.contactPhone,
       body: args.body,
     });
@@ -218,13 +225,11 @@ export const getLatestPendingRelay = internalQuery({
 
 /** Conteo de relays pendientes para el badge del dashboard */
 export const pendingRelayCount = query({
-  args: { schoolSlug: v.string() },
-  handler: async (ctx, { schoolSlug }) => {
-    const school = await ctx.db
-      .query("schools")
-      .withIndex("by_slug", (q) => q.eq("slug", schoolSlug))
-      .first();
-    if (!school) return 0;
+  args: { schoolSlug: v.string(), sessionToken: v.string() },
+  handler: async (ctx, { schoolSlug, sessionToken }) => {
+    const auth = await getDirectorSession(ctx, sessionToken, schoolSlug);
+    if (!auth) return 0;
+    const { school } = auth;
 
     const cutoff = Date.now() - 48 * 60 * 60 * 1000;
     const convs = await ctx.db

@@ -5,6 +5,7 @@ import { api } from "@/convex/_generated/api";
 import { useParams } from "next/navigation";
 import { Id } from "@/convex/_generated/dataModel";
 import { useState, useEffect, useRef } from "react";
+import { AuthGate, useSessionToken } from "@/components/AuthGate";
 
 function fmtDate(ts: number) {
   return new Date(ts).toLocaleDateString("es-MX", {
@@ -19,20 +20,46 @@ function daysLeft(ts: number) {
   return Math.ceil(diff / 86400000);
 }
 
-// ─── Student selector (demo) ────────────────────────────────────────
+// ─── Selector de alumno (solo si hay más de un hijo) ────────────────
 function StudentSelector({
   slug,
   onSelect,
+  onLogout,
+  onCount,
 }: {
   slug: string;
   onSelect: (id: Id<"students">) => void;
+  onLogout: () => void;
+  onCount: (count: number) => void;
 }) {
-  const students = useQuery(api.portal.studentsBySchool, { schoolSlug: slug });
+  const sessionToken = useSessionToken();
+  const students = useQuery(api.portal.studentsBySchool, { schoolSlug: slug, sessionToken });
 
-  if (!students || students.length === 0) {
+  // Con un solo hijo, entrar directo
+  useEffect(() => {
+    if (!students) return;
+    onCount(students.length);
+    if (students.length === 1) onSelect(students[0]._id);
+  }, [students, onSelect, onCount]);
+
+  if (students === undefined || students.length === 1) {
     return (
       <div className="min-h-screen bg-[#FAF7F2] flex items-center justify-center">
-        <p className="text-fg-muted text-sm">No hay alumnos en esta escuela.</p>
+        <div className="flex gap-2 items-center text-fg-muted text-sm">
+          <span className="h-4 w-4 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+          Cargando...
+        </div>
+      </div>
+    );
+  }
+
+  if (students.length === 0) {
+    return (
+      <div className="min-h-screen bg-[#FAF7F2] flex flex-col items-center justify-center gap-3">
+        <p className="text-fg-muted text-sm">No encontramos alumnos vinculados a tu número.</p>
+        <button onClick={onLogout} className="text-sm font-semibold text-primary hover:underline">
+          Cerrar sesión
+        </button>
       </div>
     );
   }
@@ -75,7 +102,8 @@ function StudentSelector({
 
 // ─── Chat history ────────────────────────────────────────────────────
 function ChatHistory({ slug, studentId }: { slug: string; studentId: Id<"students"> }) {
-  const chatData = useQuery(api.portal.parentConversation, { schoolSlug: slug, studentId });
+  const sessionToken = useSessionToken();
+  const chatData = useQuery(api.portal.parentConversation, { schoolSlug: slug, studentId, sessionToken });
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -147,8 +175,19 @@ function ChatHistory({ slug, studentId }: { slug: string; studentId: Id<"student
 }
 
 // ─── Main portal ─────────────────────────────────────────────────────
-function PortalHome({ slug, studentId }: { slug: string; studentId: Id<"students"> }) {
-  const data = useQuery(api.portal.parentHome, { schoolSlug: slug, studentId });
+function PortalHome({
+  slug,
+  studentId,
+  onChangeStudent,
+  onLogout,
+}: {
+  slug: string;
+  studentId: Id<"students">;
+  onChangeStudent?: () => void;
+  onLogout: () => void;
+}) {
+  const sessionToken = useSessionToken();
+  const data = useQuery(api.portal.parentHome, { schoolSlug: slug, studentId, sessionToken });
 
   if (data === undefined) {
     return (
@@ -189,9 +228,16 @@ function PortalHome({ slug, studentId }: { slug: string; studentId: Id<"students
               <p className="text-xs text-fg-muted">{student.fullName} · {student.gradeLevel}</p>
             </div>
           </div>
-          <span className="text-xs font-medium text-primary bg-primary/8 px-2.5 py-1 rounded-full border border-primary/20">
-            Portal Padres
-          </span>
+          <div className="flex items-center gap-3">
+            {onChangeStudent && (
+              <button onClick={onChangeStudent} className="text-xs text-fg-muted hover:text-fg">
+                Cambiar alumno
+              </button>
+            )}
+            <button onClick={onLogout} className="text-xs text-fg-muted hover:text-fg">
+              Salir
+            </button>
+          </div>
         </div>
       </header>
 
@@ -354,11 +400,43 @@ function PortalHome({ slug, studentId }: { slug: string; studentId: Id<"students
 // ─── Page root ────────────────────────────────────────────────────────
 export default function PortalPage() {
   const { slug } = useParams<{ slug: string }>();
+
+  return (
+    <AuthGate slug={slug} title="Portal de Padres">
+      {(session, logout) => <PortalForSession slug={slug} onLogout={logout} canSwitch={session.role === "director"} />}
+    </AuthGate>
+  );
+}
+
+function PortalForSession({
+  slug,
+  onLogout,
+  canSwitch,
+}: {
+  slug: string;
+  onLogout: () => void;
+  canSwitch: boolean;
+}) {
   const [studentId, setStudentId] = useState<Id<"students"> | null>(null);
+  const [studentCount, setStudentCount] = useState(0);
 
   if (!studentId) {
-    return <StudentSelector slug={slug} onSelect={setStudentId} />;
+    return (
+      <StudentSelector
+        slug={slug}
+        onLogout={onLogout}
+        onSelect={setStudentId}
+        onCount={setStudentCount}
+      />
+    );
   }
 
-  return <PortalHome slug={slug} studentId={studentId} />;
+  return (
+    <PortalHome
+      slug={slug}
+      studentId={studentId}
+      onLogout={onLogout}
+      onChangeStudent={canSwitch || studentCount > 1 ? () => setStudentId(null) : undefined}
+    />
+  );
 }

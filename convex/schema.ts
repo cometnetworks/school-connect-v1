@@ -266,6 +266,41 @@ export default defineSchema({
     .index("by_student", ["studentId"])
     .index("by_school", ["schoolId"]),
 
+  // ─── Acceso al portal/dashboard (OTP inverso por WhatsApp) ───────
+  // El portal genera un código y el usuario lo ENVÍA al WhatsApp de la
+  // escuela; el número que lo manda queda verificado.
+  loginRequests: defineTable({
+    schoolId: v.id("schools"),
+    phone: v.string(), // normalizado: "52" + 10 dígitos
+    code: v.string(), // "SC-XXXXXX"
+    secretHash: v.string(), // sha256 del secreto que guarda el navegador
+    status: v.union(
+      v.literal("pending"),
+      v.literal("verified"),
+      v.literal("rejected"),
+      v.literal("consumed"),
+    ),
+    role: v.optional(v.union(v.literal("parent"), v.literal("director"))),
+    userId: v.optional(v.id("users")),
+    displayName: v.optional(v.string()),
+    expiresAt: v.number(),
+  })
+    .index("by_code", ["code"])
+    .index("by_secret", ["secretHash"])
+    .index("by_phone", ["phone"]),
+
+  sessions: defineTable({
+    tokenHash: v.string(), // sha256 del token; el token solo vive en el navegador
+    schoolId: v.id("schools"),
+    phone: v.string(),
+    role: v.union(v.literal("parent"), v.literal("director")),
+    userId: v.optional(v.id("users")),
+    displayName: v.optional(v.string()),
+    expiresAt: v.number(),
+  })
+    .index("by_token", ["tokenHash"])
+    .index("by_phone", ["phone"]),
+
   // ─── Beta program ────────────────────────────────────────────────
   betaApplications: defineTable({
     schoolName: v.string(),

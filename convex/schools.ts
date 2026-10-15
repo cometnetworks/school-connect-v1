@@ -20,6 +20,7 @@ export const patchBySlug = internalMutation({
     calComParentEventTypeId: v.optional(v.string()),
     directorPhone: v.optional(v.string()),
     whatsappPhoneNumberId: v.optional(v.string()),
+    whatsappNumber: v.optional(v.string()), // número visible para el link wa.me del login
   },
   handler: async (ctx, { slug, ...fields }) => {
     const school = await ctx.db

@@ -5,6 +5,7 @@ import { api } from "@/convex/_generated/api";
 import { useParams } from "next/navigation";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Id } from "@/convex/_generated/dataModel";
+import { AuthGate, useSessionToken } from "@/components/AuthGate";
 
 const STATUS_LABEL: Record<string, string> = {
   new: "Nuevo",
@@ -64,7 +65,8 @@ function ConversationDrawer({
   convId: Id<"conversations">;
   onClose: () => void;
 }) {
-  const data = useQuery(api.conversations.getDetail, { conversationId: convId });
+  const sessionToken = useSessionToken();
+  const data = useQuery(api.conversations.getDetail, { conversationId: convId, sessionToken });
 
   return (
     <>
@@ -197,13 +199,8 @@ function ConversationDrawer({
 }
 
 // ── Modal publicar aviso ─────────────────────────────────────────────
-function PublishModal({
-  schoolId,
-  onClose,
-}: {
-  schoolId: Id<"schools">;
-  onClose: () => void;
-}) {
+function PublishModal({ onClose }: { onClose: () => void }) {
+  const sessionToken = useSessionToken();
   const publish = useMutation(api.announcements.publish);
   const generateUploadUrl = useMutation(api.announcements.generateUploadUrl);
   const [title, setTitle] = useState("");
@@ -233,7 +230,7 @@ function PublishModal({
 
       // Subir imagen si hay una seleccionada
       if (imageFile) {
-        const uploadUrl = await generateUploadUrl();
+        const uploadUrl = await generateUploadUrl({ sessionToken });
         const res = await fetch(uploadUrl, {
           method: "POST",
           headers: { "Content-Type": imageFile.type },
@@ -245,7 +242,7 @@ function PublishModal({
       }
 
       await publish({
-        schoolId,
+        sessionToken,
         title: title.trim(),
         body: body.trim(),
         sendViaWhatsapp: sendWA,
@@ -366,6 +363,7 @@ function PublishModal({
 
 // ── Caja de respuesta del director ──────────────────────────────────
 function DirectorReplyBox({ conversationId }: { conversationId: Id<"conversations"> | null }) {
+  const sessionToken = useSessionToken();
   const reply = useMutation(api.conversations.replyAsHuman);
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
@@ -379,7 +377,7 @@ function DirectorReplyBox({ conversationId }: { conversationId: Id<"conversation
       await reply({
         conversationId,
         body: text.trim(),
-        phoneNumberId: "597907523413541",
+        sessionToken,
       });
       setText("");
     } finally {
@@ -421,6 +419,7 @@ type CalBooking = {
 };
 
 function CalendarWidget({ slug }: { slug: string }) {
+  const sessionToken = useSessionToken();
   const fetchBookings = useAction(api.director.fetchCalendarBookings);
   const [weekOffset, setWeekOffset] = useState(0);
   const [bookings, setBookings] = useState<CalBooking[]>([]);
@@ -432,7 +431,7 @@ function CalendarWidget({ slug }: { slug: string }) {
     async (offset: number) => {
       setSyncing(true);
       try {
-        const result = await fetchBookings({ schoolSlug: slug, weekOffset: offset });
+        const result = await fetchBookings({ schoolSlug: slug, sessionToken, weekOffset: offset });
         setBookings(result.bookings as CalBooking[]);
         setWeekStart(new Date(result.weekStart));
       } catch (err) {
@@ -442,7 +441,7 @@ function CalendarWidget({ slug }: { slug: string }) {
         setLoading(false);
       }
     },
-    [fetchBookings, slug],
+    [fetchBookings, slug, sessionToken],
   );
 
   useEffect(() => { load(weekOffset); }, [weekOffset, load]);
@@ -577,12 +576,22 @@ function CalendarWidget({ slug }: { slug: string }) {
 }
 
 // ── Dashboard principal ──────────────────────────────────────────────
-export default function DirectorDashboard() {
+export default function DirectorDashboardPage() {
   const { slug } = useParams<{ slug: string }>();
-  const data = useQuery(api.director.summary, { schoolSlug: slug });
-  const admissionPipeline = useQuery(api.director.pipeline, { schoolSlug: slug }) ?? [];
-  const parentPipeline = useQuery(api.director.parentMessages, { schoolSlug: slug }) ?? [];
-  const pendingRelays = useQuery(api.conversations.pendingRelayCount, { schoolSlug: slug }) ?? 0;
+  return (
+    <AuthGate slug={slug} title="Panel de Dirección" requireRole="director">
+      {(_session, logout) => <DirectorDashboard slug={slug} onLogout={logout} />}
+    </AuthGate>
+  );
+}
+
+function DirectorDashboard({ slug, onLogout }: { slug: string; onLogout: () => void }) {
+  const sessionToken = useSessionToken();
+  const args = { schoolSlug: slug, sessionToken };
+  const data = useQuery(api.director.summary, args);
+  const admissionPipeline = useQuery(api.director.pipeline, args) ?? [];
+  const parentPipeline = useQuery(api.director.parentMessages, args) ?? [];
+  const pendingRelays = useQuery(api.conversations.pendingRelayCount, args) ?? 0;
   const [selectedConvId, setSelectedConvId] = useState<Id<"conversations"> | null>(null);
   const [showPublish, setShowPublish] = useState(false);
 
@@ -624,10 +633,7 @@ export default function DirectorDashboard() {
         />
       )}
       {showPublish && (
-        <PublishModal
-          schoolId={school._id as Id<"schools">}
-          onClose={() => setShowPublish(false)}
-        />
+        <PublishModal onClose={() => setShowPublish(false)} />
       )}
 
       {/* Nav */}
@@ -662,6 +668,9 @@ export default function DirectorDashboard() {
             <span className="text-xs font-medium text-primary bg-primary/8 px-2.5 py-1 rounded-full border border-primary/20">
               Panel Director
             </span>
+            <button onClick={onLogout} className="text-xs text-fg-muted hover:text-fg">
+              Salir
+            </button>
           </div>
         </div>
       </header>
