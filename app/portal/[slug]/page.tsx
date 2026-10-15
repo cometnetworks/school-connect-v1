@@ -166,9 +166,11 @@ function PortalHome({ slug, studentId }: { slug: string; studentId: Id<"students
   const { school, student, announcements, assignments, grades, events, invoices } = data;
 
   const pendingInvoice = invoices.find((i) => i.status === "pending");
-  const bim2Grades = grades.filter((g) => g.period === "Bim 2");
-  const avg = bim2Grades.length
-    ? (bim2Grades.reduce((a, b) => a + b.score, 0) / bim2Grades.length).toFixed(1)
+  // grades viene ordenado del más reciente al más antiguo
+  const latestPeriod = grades[0]?.period;
+  const currentGrades = grades.filter((g) => g.period === latestPeriod);
+  const avg = currentGrades.length
+    ? (currentGrades.reduce((a, b) => a + b.score, 0) / currentGrades.length).toFixed(1)
     : null;
 
   return (
@@ -286,17 +288,19 @@ function PortalHome({ slug, studentId }: { slug: string; studentId: Id<"students
             <div className="px-5 py-4 border-b border-border flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <span className="text-base">📊</span>
-                <h2 className="font-semibold text-fg text-sm">Calificaciones — Bim 2</h2>
+                <h2 className="font-semibold text-fg text-sm">
+                  Calificaciones{latestPeriod ? ` — ${latestPeriod}` : ""}
+                </h2>
               </div>
               {avg && (
                 <span className="text-sm font-bold text-primary">{avg}</span>
               )}
             </div>
             <div className="divide-y divide-border">
-              {bim2Grades.length === 0 && (
+              {currentGrades.length === 0 && (
                 <p className="px-5 py-6 text-center text-fg-muted text-sm">Sin calificaciones aún.</p>
               )}
-              {bim2Grades.map((g) => (
+              {currentGrades.map((g) => (
                 <div key={g._id} className="px-5 py-3 flex items-center justify-between">
                   <span className="text-sm text-fg">{g.subject}</span>
                   <div className="flex items-center gap-3">

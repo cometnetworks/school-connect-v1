@@ -17,6 +17,11 @@ async function kapsoPost(phoneNumberId: string, apiKey: string, payload: object)
   return data.messages?.[0]?.id ?? null;
 }
 
+/** WhatsApp usa *negritas* con un solo asterisco; el LLM a veces manda **Markdown** */
+function toWhatsAppFormat(text: string) {
+  return text.replace(/\*\*(.+?)\*\*/g, "*$1*");
+}
+
 export const sendText = internalAction({
   args: {
     phoneNumberId: v.string(),
@@ -31,7 +36,7 @@ export const sendText = internalAction({
       recipient_type: "individual",
       to,
       type: "text",
-      text: { body, preview_url: false },
+      text: { body: toWhatsAppFormat(body), preview_url: false },
     });
   },
 });
@@ -52,7 +57,7 @@ export const sendImage = internalAction({
       recipient_type: "individual",
       to,
       type: "image",
-      image: { link: imageUrl, ...(caption ? { caption } : {}) },
+      image: { link: imageUrl, ...(caption ? { caption: toWhatsAppFormat(caption) } : {}) },
     });
   },
 });

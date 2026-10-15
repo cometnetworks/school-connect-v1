@@ -70,13 +70,14 @@ export const getParentContext = internalQuery({
             .take(5)
         : [];
 
-      // Calificaciones del último bimestre
+      // Calificaciones del periodo más reciente capturado
       const grades = await ctx.db
         .query("grades")
         .withIndex("by_student", (q) => q.eq("studentId", student._id))
         .order("desc")
         .take(8);
-      const bim2 = grades.filter((g) => g.period === "Bim 2");
+      const latestPeriod = grades[0]?.period;
+      const currentGrades = grades.filter((g) => g.period === latestPeriod);
 
       // Próximos eventos escolares
       const events = await ctx.db
@@ -107,7 +108,7 @@ export const getParentContext = internalQuery({
         relation: link.relation,
         group,
         assignments,
-        grades: bim2,
+        grades: currentGrades,
         events,
         pendingInvoice: pending ?? null,
         announcements,

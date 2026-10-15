@@ -1100,3 +1100,238 @@ export const setAlinaDirectorPhone = mutation({
     return { updated: true, directorPhone: "525614159461" };
   },
 });
+
+/**
+ * Pasa el demo al ciclo 2026-2027 (octubre 2026): Zaíd a 3° A, calificaciones
+ * parciales del 1er trimestre, tareas, eventos, avisos y colegiaturas actuales.
+ * No borra nada: los datos del ciclo anterior quedan como historial.
+ * Idempotente — si ya existe el grupo 3° A 2026-2027, no hace nada.
+ */
+export const refreshDemo2026 = mutation({
+  args: {},
+  handler: async (ctx) => {
+    // Fechas absolutas en hora de Mérida (UTC-6)
+    const at = (isoLocal: string) => new Date(`${isoLocal}-06:00`).getTime();
+
+    const school = await ctx.db
+      .query("schools")
+      .withIndex("by_slug", (q) => q.eq("slug", "instituto-alina"))
+      .first();
+    if (!school) return { note: "Instituto Alina no encontrado" };
+    const schoolId = school._id;
+
+    const existingGroup = await ctx.db
+      .query("groups")
+      .withIndex("by_school", (q) => q.eq("schoolId", schoolId))
+      .filter((q) =>
+        q.and(q.eq(q.field("name"), "3° A"), q.eq(q.field("cycleYear"), "2026-2027")),
+      )
+      .first();
+    if (existingGroup) return { note: "Demo 2026-2027 ya existe", groupId: existingGroup._id };
+
+    const carmen = await ctx.db
+      .query("users")
+      .withIndex("by_email", (q) => q.eq("email", "carmen.lopez@institutoalina.mx"))
+      .first();
+    if (!carmen) return { note: "Mtra. Carmen no encontrada" };
+
+    const zaid = await ctx.db
+      .query("students")
+      .withIndex("by_school", (q) => q.eq("schoolId", schoolId))
+      .filter((q) => q.eq(q.field("fullName"), "Zaíd Cedillo"))
+      .first();
+    if (!zaid) return { note: "Zaíd no encontrado" };
+
+    // ── Grupo 3° A y cambio de grado ────────────────────────────────
+    const groupId = await ctx.db.insert("groups", {
+      schoolId,
+      name: "3° A",
+      gradeLevel: "3° primaria",
+      cycleYear: "2026-2027",
+    });
+    await ctx.db.insert("groupTeachers", {
+      groupId,
+      teacherUserId: carmen._id,
+      subject: "Titular",
+      isHomeroom: true,
+    });
+    await ctx.db.patch(zaid._id, { gradeLevel: "3° primaria" });
+
+    // Se reutiliza el vínculo existente: el portal toma el primer studentGroup
+    const sgLinks = await ctx.db
+      .query("studentGroups")
+      .withIndex("by_student", (q) => q.eq("studentId", zaid._id))
+      .collect();
+    if (sgLinks.length > 0) {
+      await ctx.db.patch(sgLinks[0]._id, { groupId });
+    } else {
+      await ctx.db.insert("studentGroups", { studentId: zaid._id, groupId });
+    }
+
+    // ── Calificaciones parciales 1er trimestre ──────────────────────
+    const period = "1er Trimestre (parcial)";
+    const califs = [
+      { subject: "Lenguajes (Español)", score: 9.2 },
+      { subject: "Saberes y Pensamiento Científico (Matemáticas)", score: 8.8 },
+      { subject: "Ética, Naturaleza y Sociedades", score: 9.0 },
+      { subject: "De lo Humano y lo Comunitario", score: 9.5 },
+      { subject: "Inglés", score: 9.8 },
+      { subject: "Educación Física", score: 10 },
+    ];
+    for (const c of califs) {
+      await ctx.db.insert("grades", {
+        studentId: zaid._id,
+        teacherUserId: carmen._id,
+        subject: c.subject,
+        period,
+        score: c.score,
+        note: "Avance parcial al 9 de octubre; la calificación trimestral se entrega del 30 de nov al 4 de dic.",
+        capturedAt: at("2026-10-09T14:00:00"),
+      });
+    }
+
+    // ── Tareas del grupo 3° A ───────────────────────────────────────
+    const tareas = [
+      {
+        subject: "Lenguajes (Español)",
+        title: "Lectura: leyenda de Xtabentún",
+        description: "Leer la leyenda maya y escribir un resumen de 8 oraciones con su opinión personal.",
+        dueDate: at("2026-10-19T08:00:00"),
+        createdAt: at("2026-10-13T13:00:00"),
+      },
+      {
+        subject: "Saberes y Pensamiento Científico (Matemáticas)",
+        title: "Tablas de multiplicar del 6 al 9",
+        description: "Practicar las tablas del 6 al 9. El miércoles 21 habrá dictado en clase.",
+        dueDate: at("2026-10-21T08:00:00"),
+        createdAt: at("2026-10-14T13:00:00"),
+      },
+      {
+        subject: "Inglés",
+        title: "Unit 2 vocabulary — My Community",
+        description: "Completar las páginas 18 y 19 del libro Progrentis y estudiar el vocabulario de lugares de la ciudad.",
+        dueDate: at("2026-10-23T08:00:00"),
+        createdAt: at("2026-10-14T13:30:00"),
+      },
+      {
+        subject: "De lo Humano y lo Comunitario",
+        title: "Materiales para el altar de Día de Muertos",
+        description: "Traer una foto o dibujo de un ser querido o personaje histórico y una flor de cempasúchil para el altar del grupo.",
+        dueDate: at("2026-10-27T08:00:00"),
+        createdAt: at("2026-10-15T09:00:00"),
+      },
+    ];
+    for (const t of tareas) {
+      await ctx.db.insert("assignments", { groupId, teacherUserId: carmen._id, ...t });
+    }
+
+    // ── Eventos próximos ────────────────────────────────────────────
+    const eventos = [
+      {
+        title: "Festival de Día de Muertos",
+        description: "Altar de muertos por grupo y concurso de calaveritas literarias. Familias invitadas a partir de las 10:00 AM.",
+        startsAt: at("2026-10-29T10:00:00"),
+        endsAt: at("2026-10-29T12:00:00"),
+        audience: "all" as const,
+      },
+      {
+        title: "Consejo Técnico Escolar — sin clases",
+        description: "No hay clases para los alumnos por sesión de Consejo Técnico Escolar.",
+        startsAt: at("2026-10-30T07:00:00"),
+        audience: "all" as const,
+      },
+      {
+        title: "Día de Muertos — sin clases",
+        description: "Suspensión de clases. Regresamos el martes 3 de noviembre.",
+        startsAt: at("2026-11-02T07:00:00"),
+        audience: "all" as const,
+      },
+      {
+        title: "Revolución Mexicana — sin clases",
+        description: "Día festivo oficial. No hay clases.",
+        startsAt: at("2026-11-16T07:00:00"),
+        audience: "all" as const,
+      },
+      {
+        title: "Evaluaciones del 1er trimestre",
+        description: "Semana de evaluaciones del primer trimestre, del lunes 23 al jueves 26 de noviembre.",
+        startsAt: at("2026-11-23T07:00:00"),
+        endsAt: at("2026-11-26T15:00:00"),
+        audience: "all" as const,
+      },
+      {
+        title: "Junta de padres — 3° A (entrega de boletas)",
+        description: "Entrega de boletas del 1er trimestre con la Mtra. Carmen López. Asistencia obligatoria.",
+        startsAt: at("2026-12-04T17:00:00"),
+        endsAt: at("2026-12-04T18:30:00"),
+        audience: "group" as const,
+        groupId,
+      },
+      {
+        title: "Festival de Navidad",
+        description: "Presentación navideña de todos los grupos en el patio principal.",
+        startsAt: at("2026-12-18T10:00:00"),
+        endsAt: at("2026-12-18T12:00:00"),
+        audience: "all" as const,
+      },
+    ];
+    for (const e of eventos) {
+      await ctx.db.insert("events", { schoolId, ...e });
+    }
+
+    // ── Avisos recientes ────────────────────────────────────────────
+    await ctx.db.insert("announcements", {
+      schoolId,
+      authorUserId: carmen._id,
+      title: "Festival de Día de Muertos — jueves 29 de octubre",
+      body: "Las familias están invitadas a nuestro altar y concurso de calaveritas el jueves 29 a las 10:00 AM. Los alumnos pueden venir con maquillaje de catrina o catrín.",
+      publishedAt: at("2026-10-14T12:00:00"),
+      sendViaWhatsapp: true,
+    });
+    await ctx.db.insert("announcements", {
+      schoolId,
+      authorUserId: carmen._id,
+      title: "Sin clases viernes 30 de octubre y lunes 2 de noviembre",
+      body: "El viernes 30 hay Consejo Técnico Escolar y el lunes 2 es Día de Muertos. Regresamos a clases el martes 3 de noviembre en horario normal.",
+      publishedAt: at("2026-10-13T12:00:00"),
+      sendViaWhatsapp: true,
+    });
+    await ctx.db.insert("announcements", {
+      schoolId,
+      groupId,
+      authorUserId: carmen._id,
+      title: "3° A — Altar del grupo",
+      body: "Para el altar del grupo, cada alumno debe traer a más tardar el martes 27 una foto o dibujo de un ser querido o personaje histórico y una flor de cempasúchil.",
+      publishedAt: at("2026-10-15T09:00:00"),
+      sendViaWhatsapp: false,
+    });
+
+    // ── Colegiaturas ────────────────────────────────────────────────
+    // Cerrar pendientes del ciclo anterior para que no aparezcan como adeudo
+    const oldInvoices = await ctx.db
+      .query("tuitionInvoices")
+      .withIndex("by_student", (q) => q.eq("studentId", zaid._id))
+      .collect();
+    for (const inv of oldInvoices) {
+      if (inv.status !== "paid") {
+        await ctx.db.patch(inv._id, { status: "paid", paidAt: inv.dueDate });
+      }
+    }
+    const colegiaturas = [
+      { period: "Septiembre 2026", dueDate: at("2026-09-10T23:59:00"), paidAt: at("2026-09-04T11:00:00"), status: "paid" as const },
+      { period: "Octubre 2026", dueDate: at("2026-10-10T23:59:00"), paidAt: at("2026-10-08T11:00:00"), status: "paid" as const },
+      { period: "Noviembre 2026", dueDate: at("2026-11-10T23:59:00"), status: "pending" as const },
+    ];
+    for (const c of colegiaturas) {
+      await ctx.db.insert("tuitionInvoices", {
+        studentId: zaid._id,
+        schoolId,
+        amount: 2500, // 3° primaria — monto provisional 2026-2027
+        currency: "MXN",
+        ...c,
+      });
+    }
+
+    return { note: "Demo 2026-2027 listo", groupId, zaidId: zaid._id };
+  },
+});
