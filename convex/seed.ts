@@ -906,17 +906,19 @@ export const enrichAlinaInfo = mutation({
 
         // ── Costos detallados ──────────────────────────────────────────
         costsDetail:
-          "INSCRIPCIÓN (pago único anual, ciclo 2025-2026):\n" +
-          "• 1° y 2° primaria: $6,500 MXN\n" +
-          "• 3° y 4° primaria: $7,000 MXN\n" +
-          "• 5° y 6° primaria: $7,500 MXN\n\n" +
-          "COLEGIATURA MENSUAL (10 mensualidades: agosto a mayo):\n" +
-          "• 1° primaria: $2,000 MXN/mes\n" +
-          "• 2° primaria: $2,200 MXN/mes\n" +
-          "• 3° primaria: $2,400 MXN/mes\n" +
-          "• 4° primaria: $2,400 MXN/mes\n" +
-          "• 5° primaria: $2,600 MXN/mes\n" +
-          "• 6° primaria: $2,800 MXN/mes\n\n" +
+          // PROVISIONAL: montos 2026-2027 pendientes de confirmar con la directora
+          "Montos de referencia ciclo 2026-2027; la directora confirma el monto final en la visita.\n\n" +
+          "INSCRIPCIÓN (pago único anual, ciclo 2026-2027):\n" +
+          "• 1° y 2° primaria: $6,800 MXN\n" +
+          "• 3° y 4° primaria: $7,300 MXN\n" +
+          "• 5° y 6° primaria: $7,900 MXN\n\n" +
+          "COLEGIATURA MENSUAL (10 mensualidades: septiembre a junio):\n" +
+          "• 1° primaria: $2,100 MXN/mes\n" +
+          "• 2° primaria: $2,300 MXN/mes\n" +
+          "• 3° primaria: $2,500 MXN/mes\n" +
+          "• 4° primaria: $2,500 MXN/mes\n" +
+          "• 5° primaria: $2,700 MXN/mes\n" +
+          "• 6° primaria: $2,900 MXN/mes\n\n" +
           "POLÍTICA DE PAGO:\n" +
           "• Colegiatura: primeros 10 días de cada mes.\n" +
           "• Del día 11 en adelante: recargo de $120 MXN.\n" +
@@ -936,78 +938,74 @@ export const enrichAlinaInfo = mutation({
           "• Robótica: $500 MXN/mes\n" +
           "• Cuidado extendido (3-4 PM): $800 MXN/mes",
 
-        // ── Calendario escolar SEP 2025-2026 ──────────────────────────
+        // ── Calendario escolar SEP 2026-2027 ──────────────────────────
+        // PROVISIONAL: basado en el calendario SEP publicado en medios (jul 2026);
+        // vacaciones de invierno y CTE de 2027 pueden variar — confirmar con la escuela.
         schoolCalendar:
-          "CICLO ESCOLAR 2025-2026:\n" +
-          "• Inicio de clases: 25 de agosto de 2025\n" +
-          "• Fin de ciclo: 26 de junio de 2026\n\n" +
+          "CICLO ESCOLAR 2026-2027:\n" +
+          "• Inicio de clases: lunes 31 de agosto de 2026\n" +
+          "• Fin de ciclo: viernes 9 de julio de 2027\n\n" +
           "PERÍODOS VACACIONALES:\n" +
-          "• Vacaciones de diciembre: 22 de diciembre 2025 al 9 de enero 2026\n" +
-          "• Semana Santa: 30 de marzo al 11 de abril de 2026\n\n" +
+          "• Vacaciones de invierno: 21 de diciembre 2026 al 5 de enero 2027 (regreso a clases miércoles 6 de enero)\n" +
+          "• Semana Santa: 22 de marzo al 2 de abril de 2027\n\n" +
           "DÍAS FESTIVOS SIN CLASES (oficiales SEP):\n" +
-          "• 16 de septiembre 2025 — Día de la Independencia\n" +
-          "• 20 de noviembre 2025 — Revolución Mexicana\n" +
-          "• 1 de enero 2026 — Año Nuevo\n" +
-          "• 3 de febrero 2026 — Día de la Constitución (puente)\n" +
-          "• 16 de marzo 2026 — Natalicio de Benito Juárez (puente)\n" +
-          "• 30 de abril 2026 — Día del Niño (evento escolar, no hay clases regulares)\n" +
-          "• 15 de mayo 2026 — Día del Maestro (sin clases)\n" +
-          "• 1 de mayo 2026 — Día del Trabajo\n\n" +
-          "BIMESTRES (períodos de evaluación):\n" +
-          "• 1er Bimestre: 25 agosto – 17 octubre 2025\n" +
-          "• 2do Bimestre: 20 octubre – 19 diciembre 2025\n" +
-          "• 3er Bimestre: 12 enero – 13 marzo 2026\n" +
-          "• 4to Bimestre: 16 marzo – 22 mayo 2026\n" +
-          "• 5to Bimestre: 25 mayo – 26 junio 2026\n\n" +
-          "CONSEJOS TÉCNICOS ESCOLARES (viernes sin clases para alumnos, aprox.):\n" +
-          "• 26 de septiembre 2025\n" +
-          "• 31 de octubre 2025\n" +
-          "• 30 de enero 2026\n" +
-          "• 27 de febrero 2026\n" +
-          "• 24 de abril 2026\n" +
-          "• 29 de mayo 2026\n" +
+          "• Miércoles 16 de septiembre 2026 — Día de la Independencia\n" +
+          "• Lunes 2 de noviembre 2026 — Día de Muertos\n" +
+          "• Lunes 16 de noviembre 2026 — Revolución Mexicana\n" +
+          "• Lunes 1 de febrero 2027 — Día de la Constitución\n" +
+          "• Lunes 15 de marzo 2027 — Natalicio de Benito Juárez\n" +
+          "• Miércoles 5 de mayo 2027 — Batalla de Puebla\n\n" +
+          "TRIMESTRES (períodos de evaluación, Nueva Escuela Mexicana):\n" +
+          "• 1er Trimestre: 31 agosto – 27 noviembre 2026\n" +
+          "• 2do Trimestre: 30 noviembre 2026 – 12 marzo 2027\n" +
+          "• 3er Trimestre: 16 marzo – 9 julio 2027\n\n" +
+          "CONSEJOS TÉCNICOS ESCOLARES (viernes sin clases para alumnos):\n" +
+          "• 25 de septiembre 2026\n" +
+          "• 30 de octubre 2026\n" +
+          "• 27 de noviembre 2026\n" +
+          "• 29 de enero 2027\n" +
+          "• 26 de febrero 2027\n" +
+          "• 26 de marzo 2027 (cae en Semana Santa)\n" +
+          "• 30 de abril 2027\n" +
+          "• 28 de mayo 2027\n" +
+          "• 25 de junio 2027\n" +
           "(Se confirma con circular oficial cada mes)",
 
         // ── Juntas de padres y evaluaciones ───────────────────────────
         parentMeetings:
           "JUNTAS DE PADRES DE FAMILIA (obligatorias):\n" +
-          "• Junta de inicio de ciclo: viernes 22 de agosto de 2025, 5:00 PM\n" +
-          "• Junta 1er bimestre: viernes 17 de octubre de 2025, 5:00 PM\n" +
-          "• Junta 2do bimestre: viernes 19 de diciembre de 2025, 1:00 PM\n" +
-          "• Junta 3er bimestre: viernes 13 de marzo de 2026, 5:00 PM\n" +
-          "• Junta 4to bimestre: viernes 22 de mayo de 2026, 5:00 PM\n" +
-          "• Junta de fin de ciclo: viernes 26 de junio de 2026, 10:00 AM\n\n" +
+          "• Junta de inicio de ciclo: viernes 4 de septiembre de 2026, 5:00 PM\n" +
+          "• Junta 1er trimestre: viernes 4 de diciembre de 2026, 5:00 PM\n" +
+          "• Junta 2do trimestre: viernes 19 de marzo de 2027, 5:00 PM\n" +
+          "• Junta de fin de ciclo: viernes 9 de julio de 2027, 10:00 AM\n\n" +
           "ENTREGA DE BOLETAS:\n" +
-          "• 1er bimestre: semana del 20 al 24 de octubre de 2025\n" +
-          "• 2do bimestre: semana del 22 al 19 de diciembre de 2025 (antes de vacaciones)\n" +
-          "• 3er bimestre: semana del 16 al 20 de marzo de 2026\n" +
-          "• 4to bimestre: semana del 25 al 29 de mayo de 2026\n" +
-          "• 5to bimestre / fin de ciclo: 26 de junio de 2026\n\n" +
+          "• 1er trimestre: semana del 30 de noviembre al 4 de diciembre de 2026\n" +
+          "• 2do trimestre: semana del 15 al 19 de marzo de 2027\n" +
+          "• 3er trimestre / fin de ciclo: 9 de julio de 2027\n\n" +
           "CITAS CON MAESTRAS (Mtra. Carmen López, grupo 2°A):\n" +
           "• Martes y jueves de 1:15 PM a 2:00 PM (previa cita)\n" +
           "• Se agenda vía WhatsApp al sistema de comunicación de la escuela.\n\n" +
           "CITAS CON DIRECCIÓN:\n" +
           "• Lunes, miércoles y viernes de 12:00 PM a 2:00 PM\n" +
           "• Se agenda vía WhatsApp o en la recepción de la escuela.\n\n" +
-          "EVALUACIONES (fechas aproximadas por bimestre):\n" +
-          "• 1er bimestre: 13-17 de octubre 2025\n" +
-          "• 2do bimestre: 15-19 de diciembre 2025\n" +
-          "• 3er bimestre: 9-13 de marzo 2026\n" +
-          "• 4to bimestre: 18-22 de mayo 2026\n" +
-          "• 5to bimestre: 22-26 de junio 2026",
+          "EVALUACIONES (fechas aproximadas por trimestre):\n" +
+          "• 1er trimestre: 23-26 de noviembre 2026\n" +
+          "• 2do trimestre: 8-12 de marzo 2027\n" +
+          "• 3er trimestre: 28 de junio - 2 de julio 2027",
 
         // ── Vida escolar ───────────────────────────────────────────────
         schoolLife:
-          "EVENTOS ESCOLARES IMPORTANTES 2025-2026:\n" +
-          "• Semana de bienvenida: 25-29 agosto 2025\n" +
-          "• Desfile 16 de septiembre: participación de alumnos (circular previa)\n" +
-          "• Festival de Halloween/Día de Muertos: 31 octubre 2025\n" +
-          "• Festival de Navidad: 19 de diciembre 2025, 10:00 AM\n" +
-          "• Día del Amor y la Amistad: 14 febrero 2026 (evento interno)\n" +
-          "• Día del Niño: 30 abril 2026, festival con actividades especiales\n" +
-          "• Día del Maestro: 15 mayo 2026\n" +
-          "• Kermés de fin de ciclo: junio 2026 (fecha por confirmar)\n" +
-          "• Clausura y ceremonia de graduación 6°: 26 junio 2026\n\n" +
+          "EVENTOS ESCOLARES IMPORTANTES 2026-2027:\n" +
+          "• Semana de bienvenida: 31 agosto - 4 septiembre 2026\n" +
+          "• Ceremonia de Independencia: martes 15 de septiembre 2026 (circular previa)\n" +
+          "• Festival de Día de Muertos (altar y concurso de calaveritas): jueves 29 de octubre 2026\n" +
+          "• Festival de Navidad: viernes 18 de diciembre 2026, 10:00 AM\n" +
+          "• Día del Amor y la Amistad: viernes 12 de febrero 2027 (evento interno)\n" +
+          "• Día del Niño: jueves 29 de abril 2027, festival con actividades especiales\n" +
+          "• Festival del Día de las Madres: viernes 7 de mayo 2027\n" +
+          "• Día del Maestro: sábado 15 de mayo 2027 (convivio el viernes 14)\n" +
+          "• Kermés de fin de ciclo: junio 2027 (fecha por confirmar)\n" +
+          "• Clausura y ceremonia de graduación 6°: 9 de julio 2027\n\n" +
           "SERVICIOS INCLUIDOS:\n" +
           "• Seguro escolar de accidentes incluido en la colegiatura.\n" +
           "• Acceso al portal digital para padres (calificaciones, tareas, avisos).\n" +
@@ -1058,11 +1056,11 @@ export const enrichAlinaInfo = mutation({
           "¿Tienen descuento para hermanos? Sí, 10% de descuento en la colegiatura del segundo hijo inscrito.\n" +
           "¿Cómo se comunican los avisos? Por WhatsApp a través del sistema escolar y en el portal de padres.\n" +
           "¿El seguro escolar cubre qué? Accidentes dentro y fuera del plantel durante horario escolar. No incluye enfermedades.\n" +
-          "¿Cuándo inicia el siguiente ciclo escolar? 25 de agosto de 2025. Inscripciones abiertas desde marzo.\n" +
+          "¿Cuándo inicia el siguiente ciclo escolar? El ciclo 2026-2027 inició el 31 de agosto de 2026 y aún hay lugares en algunos grados. Inscripciones para el ciclo 2027-2028 abren en marzo de 2027.\n" +
           "¿Tienen prepa o secundaria? Solo primaria (1° a 6°). Al terminar 6° te orientamos con secundarias afines a nuestro modelo.",
 
         tuitionRanges:
-          "$2,000 a $2,800 MXN/mes según grado. Inscripción: $6,500 a $7,500 MXN. 10 mensualidades por ciclo.",
+          "$2,100 a $2,900 MXN/mes según grado. Inscripción: $6,800 a $7,900 MXN. 10 mensualidades por ciclo (referencia 2026-2027).",
       },
     });
 

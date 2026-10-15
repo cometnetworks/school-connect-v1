@@ -125,7 +125,7 @@ ${info.costsDetail ?? info.tuitionRanges ?? "Consultar con la escuela."}
 📋 REQUISITOS DE ADMISIÓN:
 ${info.requirements ?? "sin especificar"}
 
-📅 CALENDARIO ESCOLAR ${new Date().getFullYear()}-${new Date().getFullYear() + 1}:
+📅 CALENDARIO ESCOLAR:
 ${info.schoolCalendar ?? "Consultar calendario en la escuela."}
 
 👨‍👩‍👧 JUNTAS DE PADRES Y EVALUACIONES:
