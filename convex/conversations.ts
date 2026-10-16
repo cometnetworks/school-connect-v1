@@ -6,7 +6,7 @@ import { getDirectorSession, getSessionByToken } from "./lib/session";
 export const setType = internalMutation({
   args: {
     conversationId: v.id("conversations"),
-    type: v.union(v.literal("admission"), v.literal("parent"), v.literal("director")),
+    type: v.union(v.literal("admission"), v.literal("parent"), v.literal("director"), v.literal("teacher")),
     contactName: v.optional(v.string()),
   },
   handler: async (ctx, { conversationId, type, contactName }) => {
@@ -177,8 +177,9 @@ export const getWithHistory = internalQuery({
  * que empiece con "📋").
  */
 export const getLatestPendingRelay = internalQuery({
-  args: { schoolId: v.id("schools") },
-  handler: async (ctx, { schoolId }) => {
+  // relayTarget: "DIRECCIÓN" o el nombre de la maestra (como aparece en la nota)
+  args: { schoolId: v.id("schools"), relayTarget: v.string() },
+  handler: async (ctx, { schoolId, relayTarget }) => {
     const cutoff = Date.now() - 48 * 60 * 60 * 1000; // últimas 48 h
 
     // Conversaciones recientes de la escuela
@@ -204,9 +205,11 @@ export const getLatestPendingRelay = internalQuery({
         )
         .collect();
 
-      // Relay pendiente = existe un 📋 que NO tiene un 📋✅ más reciente
+      // Pendiente = nota "📋 SOLICITUD PARA <destinatario>" sin resolver y creada en las
+      // últimas 48 h (por la fecha de la nota, no de la conversación: si no, una solicitud
+      // vieja "revive" en cuanto el padre vuelve a escribir)
       const relayNotes = humanMsgs
-        .filter((m) => m.body.startsWith("📋") && !m.body.startsWith("📋✅"))
+        .filter((m) => m.body.startsWith(`📋 SOLICITUD PARA ${relayTarget}\n`) && m._creationTime >= cutoff)
         .sort((a, b) => b._creationTime - a._creationTime);
 
       if (relayNotes.length > 0) {
@@ -216,6 +219,7 @@ export const getLatestPendingRelay = internalQuery({
           contactName: conv.contactName ?? "Padre/Madre",
           relayBody: relayNotes[0].body,
           relayMessageId: relayNotes[0]._id,
+          relayCreatedAt: relayNotes[0]._creationTime,
         };
       }
     }
@@ -241,18 +245,18 @@ export const pendingRelayCount = query({
     let count = 0;
     for (const conv of convs) {
       if (conv.lastMessageAt < cutoff) continue;
-      const relayNote = await ctx.db
+      const pending = await ctx.db
         .query("messages")
         .withIndex("by_conversation", (q) => q.eq("conversationId", conv._id))
-        .order("desc")
         .filter((q) =>
           q.and(
             q.eq(q.field("sender"), "human"),
             q.eq(q.field("direction"), "outbound"),
+            q.gte(q.field("_creationTime"), cutoff),
           ),
         )
-        .first();
-      if (relayNote?.body.startsWith("📋")) count++;
+        .collect();
+      count += pending.filter((m) => m.body.startsWith("📋 SOLICITUD PARA ")).length;
     }
     return count;
   },

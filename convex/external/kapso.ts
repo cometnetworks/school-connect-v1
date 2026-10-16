@@ -4,6 +4,11 @@ import { v } from "convex/values";
 const KAPSO_BASE = "https://api.kapso.ai/meta/whatsapp/v24.0";
 
 async function kapsoPost(phoneNumberId: string, apiKey: string, payload: object) {
+  // KAPSO_DRY_RUN=1 (solo en dev): registra el mensaje en logs en vez de enviarlo
+  if (process.env.KAPSO_DRY_RUN === "1") {
+    console.log("[kapso-dry-run]", JSON.stringify(payload));
+    return null;
+  }
   const res = await fetch(`${KAPSO_BASE}/${phoneNumberId}/messages`, {
     method: "POST",
     headers: { "Content-Type": "application/json", "X-API-Key": apiKey },

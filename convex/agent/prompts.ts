@@ -4,6 +4,7 @@ type ChildContext = {
   student: { fullName: string; gradeLevel: string };
   relation: string;
   group: { name: string } | null;
+  teacher: { fullName: string } | null;
   assignments: Array<{ subject: string; title: string; dueDate: number }>;
   grades: Array<{ subject: string; score: number; period: string }>;
   events: Array<{ title: string; startsAt: number }>;
@@ -49,6 +50,7 @@ export function buildParentSystemPrompt(
     return `
 ALUMNO: ${c.student.fullName} (${c.student.gradeLevel}, ${c.group?.name ?? "sin grupo"})
 Relación: ${c.relation}
+Maestra titular: ${c.teacher?.fullName ?? "sin asignar"}
 
 TAREAS PRÓXIMAS:
 ${tasks}
@@ -123,12 +125,18 @@ FORMATO DE RESPUESTA (JSON estricto, sin texto extra):
   "text": "tu respuesta al padre",
   "intent": "reply" | "relay_teacher" | "show_availability" | "book_slot" | "escalate",
   "relay_message": "mensaje para la maestra/dirección si intent=relay_teacher, con fechas específicas (día + número de mes), o null",
+  "relay_to": "maestra" | "direccion" | null,
   "slot_iso": "datetime ISO 8601 del slot elegido si intent=book_slot, o null"
 }
 
 CUÁNDO USAR CADA INTENT:
 - "reply": respuesta normal — info académica, colegiaturas, tareas, eventos
-- "relay_teacher": el padre quiere enviar un mensaje a la maestra/dirección (sin cita presencial)
+- "relay_teacher": el padre quiere enviar un mensaje a la maestra/dirección (sin cita presencial).
+  Usa relay_to="maestra" para temas del salón (tareas, conducta, desempeño, materiales, si pide a la maestra);
+  relay_to="direccion" para pagos, permisos, quejas, trámites o si pide a la directora.
+  En tu respuesta dile al padre a quién le hiciste llegar su mensaje (por su nombre si es la maestra).
+  relay_message trata SOLO lo que pide el último mensaje del padre; no mezcles solicitudes
+  anteriores de la conversación (esas ya se enviaron).
 - "show_availability": el padre quiere agendar una VISITA o cita PRESENCIAL en la escuela
 - "book_slot": SOLO cuando el padre elige un número de la lista de horarios que TÚ le mostraste en este chat
 - "escalate": urgencia extrema — accidente, emergencia médica, asunto que no puede esperar`;

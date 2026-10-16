@@ -1,5 +1,6 @@
 import { internalQuery } from "./_generated/server";
 import { v } from "convex/values";
+import { phoneVariants } from "./lib/phone";
 
 /**
  * Busca si un número de teléfono es un padre/madre registrado
@@ -59,6 +60,16 @@ export const getParentContext = internalQuery({
         .first();
       const group = sgLink ? await ctx.db.get(sgLink.groupId) : null;
 
+      // Maestra titular del grupo (para dirigirle solicitudes)
+      const homeroom = sgLink
+        ? await ctx.db
+            .query("groupTeachers")
+            .withIndex("by_group", (q) => q.eq("groupId", sgLink.groupId))
+            .filter((q) => q.eq(q.field("isHomeroom"), true))
+            .first()
+        : null;
+      const teacherUser = homeroom ? await ctx.db.get(homeroom.teacherUserId) : null;
+
       // Tareas próximas
       const assignments = sgLink
         ? await ctx.db
@@ -107,6 +118,7 @@ export const getParentContext = internalQuery({
         student,
         relation: link.relation,
         group,
+        teacher: teacherUser ? { fullName: teacherUser.fullName, phone: teacherUser.phone ?? null } : null,
         assignments,
         grades: currentGrades,
         events,
@@ -121,5 +133,28 @@ export const getParentContext = internalQuery({
       parent: parentUser,
       children,
     };
+  },
+});
+
+/** Maestra(o) de la escuela con ese teléfono (titular o de materia en algún grupo) */
+export const getTeacherByPhone = internalQuery({
+  args: { schoolId: v.id("schools"), phone: v.string() },
+  handler: async (ctx, { schoolId, phone }) => {
+    for (const variant of phoneVariants(phone)) {
+      const user = await ctx.db
+        .query("users")
+        .withIndex("by_phone", (q) => q.eq("phone", variant))
+        .first();
+      if (!user) continue;
+      const assignments = await ctx.db
+        .query("groupTeachers")
+        .withIndex("by_teacher", (q) => q.eq("teacherUserId", user._id))
+        .collect();
+      for (const a of assignments) {
+        const group = await ctx.db.get(a.groupId);
+        if (group?.schoolId === schoolId) return { userId: user._id, fullName: user.fullName };
+      }
+    }
+    return null;
   },
 });

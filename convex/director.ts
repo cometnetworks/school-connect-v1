@@ -124,7 +124,7 @@ export const summary = query({
       .collect();
 
     // Excluir conversaciones de la directora de los KPIs
-    const admissionConvs = convs.filter((c) => c.type !== "director" && c.type !== "parent");
+    const admissionConvs = convs.filter((c) => c.type !== "director" && c.type !== "parent" && c.type !== "teacher");
 
     const now = Date.now();
     const weekAgo = now - 7 * 24 * 60 * 60 * 1000;
@@ -135,7 +135,7 @@ export const summary = query({
       (c) => c.status === "visit_scheduled",
     ).length;
     const enrolled = admissionConvs.filter((c) => c.status === "enrolled").length;
-    const thisWeek = convs.filter((c) => c.lastMessageAt >= weekAgo && c.type !== "director").length;
+    const thisWeek = convs.filter((c) => c.lastMessageAt >= weekAgo && c.type !== "director" && c.type !== "teacher").length;
 
     const visits = await ctx.db
       .query("visits")
@@ -182,7 +182,7 @@ export const pipeline = query({
       .collect();
 
     // Solo prospectos de admisiones (excluir padres y directora)
-    return convs.filter((c) => c.type !== "parent" && c.type !== "director");
+    return convs.filter((c) => c.type !== "parent" && c.type !== "director" && c.type !== "teacher");
   },
 });
 

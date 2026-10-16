@@ -3,6 +3,7 @@ import { v } from "convex/values";
 import { internal } from "../_generated/api";
 import { buildAdmissionsSystemPrompt, buildParentSystemPrompt, buildSlotsMessage } from "./prompts";
 import type { SlotOption } from "../external/calcom";
+import { samePhone } from "../lib/phone";
 
 type AgentResponse = {
   text: string;
@@ -28,21 +29,30 @@ async function callLLMRaw(
   const model = process.env.LLM_MODEL_PRIMARY ?? "claude-haiku-4-5-20251001";
   if (!apiKey) throw new Error("ANTHROPIC_API_KEY not set");
 
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-api-key": apiKey,
-      "anthropic-version": "2023-06-01",
-    },
-    body: JSON.stringify({
-      model,
-      system: systemPrompt,
-      messages,
-      temperature: 0.1,
-      max_tokens: maxTokens,
-    }),
-  });
+  const request = () =>
+    fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": apiKey,
+        "anthropic-version": "2023-06-01",
+      },
+      body: JSON.stringify({
+        model,
+        system: systemPrompt,
+        messages,
+        temperature: 0.1,
+        max_tokens: maxTokens,
+      }),
+    });
+
+  let res = await request();
+  // Un reintento ante saturación o error temporal (429 / 5xx / 529)
+  if (res.status === 429 || res.status >= 500) {
+    console.warn(`[LLM] Anthropic HTTP ${res.status}, reintentando...`);
+    await new Promise((r) => setTimeout(r, 1500));
+    res = await request();
+  }
 
   if (!res.ok) {
     const text = await res.text();
@@ -88,10 +98,23 @@ async function callLLM(
   systemPrompt: string,
   messages: Array<{ role: "user" | "assistant"; content: string }>,
 ): Promise<AgentResponse> {
+  let cleaned: string | null = null;
   try {
-    const cleaned = await callLLMRaw(systemPrompt, messages);
+    cleaned = await callLLMRaw(systemPrompt, messages);
     return JSON.parse(cleaned) as AgentResponse;
   } catch {
+    // El modelo a veces contesta un saludo en texto plano en vez de JSON: es válido
+    if (cleaned && !cleaned.trimStart().startsWith("{") && cleaned.trim().length > 1) {
+      console.warn("[LLM] respuesta sin JSON, se usa como texto");
+      return {
+        text: cleaned.trim(),
+        intent: "reply",
+        contact_name: null,
+        student_name: null,
+        grade_level: null,
+        slot_iso: null,
+      };
+    }
     return {
       text: "Disculpa, en este momento tengo un problema técnico. Por favor escribe en unos minutos.",
       intent: "reply",
@@ -134,134 +157,106 @@ export const processMessage = internalAction({
       timeZone: "America/Merida",
     });
 
-    // ── Modo directora: responde desde su WhatsApp ────────────────────
-    const directorPhone = schoolData.directorPhone;
-    if (directorPhone) {
-      const digits = args.contactPhone.replace(/\D/g, "");
-      const dirDigits = directorPhone.replace(/\D/g, "");
-      const isDirector = digits === dirDigits || args.contactPhone === directorPhone;
+    // ── Personal escolar (dirección o maestra): responde solicitudes de padres ──
+    // Cada solicitud se guarda como nota "📋 SOLICITUD PARA <destinatario>" en la
+    // conversación del padre; quien la recibe contesta y Aurora se la reenvía.
+    let staff: { kind: "director" | "teacher"; name: string; relayTarget: string } | null = null;
+    if (schoolData.directorPhone && samePhone(schoolData.directorPhone, args.contactPhone)) {
+      staff = { kind: "director", name: "Dirección", relayTarget: "DIRECCIÓN" };
+    } else if (!parentCtx) {
+      const teacher = await ctx.runQuery(internal.parentLookup.getTeacherByPhone, {
+        schoolId: args.schoolId,
+        phone: args.contactPhone,
+      });
+      if (teacher) staff = { kind: "teacher", name: teacher.fullName, relayTarget: teacher.fullName };
+    }
 
-      if (isDirector) {
-        // Marcar tipo en segundo plano — no bloquea si falla
-        ctx.runMutation(internal.conversations.setType, {
-          conversationId: args.conversationId,
-          type: "director",
-        }).catch((e) => console.error("[director-mode] setType error:", e));
-        const pendingRelay = await ctx.runQuery(
-          internal.conversations.getLatestPendingRelay,
-          { schoolId: args.schoolId },
-        );
+    if (staff) {
+      const send = async (conversationId: typeof args.conversationId, to: string, body: string, sender: "agent" | "human") => {
+        await ctx.runMutation(internal.conversations.addMessage, { conversationId, direction: "outbound", sender, body });
+        await ctx.runAction(internal.external.kapso.sendText, { phoneNumberId: args.phoneNumberId, to, body });
+      };
 
-        if (!pendingRelay) {
-          // Puede ser que la directora esté respondiendo a una notificación de
-          // prospecto (escalate). En ese caso solo confirmamos recepción.
-          const ackBody = "✅ Mensaje recibido. Para ver prospectos, citas y mensajes de padres, escribe *portal* y te mando tu acceso al panel de dirección.";
-          await ctx.runMutation(internal.conversations.addMessage, {
-            conversationId: args.conversationId,
-            direction: "outbound",
-            sender: "agent",
-            body: ackBody,
-          });
-          await ctx.runAction(internal.external.kapso.sendText, {
-            phoneNumberId: args.phoneNumberId,
-            to: args.contactPhone,
-            body: ackBody,
-          });
-          return;
-        }
+      // Marcar tipo en segundo plano — no bloquea si falla
+      ctx.runMutation(internal.conversations.setType, {
+        conversationId: args.conversationId,
+        type: staff.kind,
+        contactName: staff.kind === "teacher" ? staff.name : undefined,
+      }).catch((e) => console.error("[staff-mode] setType error:", e));
 
-        // Verificar si ya enviamos el resumen de la solicitud a la directora
-        // (cualquier mensaje outbound con "Escribe tu respuesta" en el historial)
-        const directorHistory = (historyData.messages as Message[]);
-        const alreadyPrompted = directorHistory.some(
-          (m) => m.direction === "outbound" && m.body.includes("Escribe tu respuesta"),
-        );
-        console.log("[director-mode] alreadyPrompted:", alreadyPrompted, "| outbound msgs:", directorHistory.filter(m => m.direction === "outbound").map(m => m.body.slice(0, 60)));
-        console.log("[director-mode] pendingRelay:", pendingRelay?.contactName, pendingRelay?.conversationId);
+      const pendingRelay = await ctx.runQuery(internal.conversations.getLatestPendingRelay, {
+        schoolId: args.schoolId,
+        relayTarget: staff.relayTarget,
+      });
 
-        if (!alreadyPrompted) {
-          // Paso 1: mostrar la solicitud pendiente, no reenviar todavía
-          const summary =
-            `📋 *Solicitud de ${pendingRelay.contactName}:*\n\n` +
-            `${pendingRelay.relayBody.replace("📋 SOLICITUD PARA DIRECCIÓN\n", "").trim()}\n\n` +
-            `Escribe tu respuesta y te la enviamos automáticamente a ${pendingRelay.contactName}.`;
+      if (!pendingRelay) {
+        const ackBody =
+          staff.kind === "director"
+            ? "✅ Mensaje recibido. Para ver prospectos, citas y mensajes de padres, escribe *portal* y te mando tu acceso al panel de dirección."
+            : `👋 Hola, ${staff.name}. Soy Aurora, la asistente de ${schoolData.name}. Cuando un papá o mamá de tu grupo quiera hablar contigo, te llegará su mensaje por aquí y podrás contestarle directamente.`;
+        await send(args.conversationId, args.contactPhone, ackBody, "agent");
+        return;
+      }
 
-          await ctx.runMutation(internal.conversations.addMessage, {
-            conversationId: args.conversationId,
-            direction: "outbound",
-            sender: "agent",
-            body: summary,
-          });
-          await ctx.runAction(internal.external.kapso.sendText, {
-            phoneNumberId: args.phoneNumberId,
-            to: args.contactPhone,
-            body: summary,
-          });
-        } else {
-          // Paso 2: pulir el mensaje de la directora con el LLM antes de enviarlo al padre
-          const polishPrompt = `Eres el asistente de comunicación de ${schoolData.name}.
-La directora te manda una nota informal y debes convertirla en un mensaje cálido y profesional para el padre/madre de familia.
+      // ¿Ya se le mostró ESTA solicitud? (aviso con "Escribe tu respuesta" posterior a la nota)
+      const staffHistory = historyData.messages as Array<Message & { _creationTime: number }>;
+      const alreadyPrompted = staffHistory.some(
+        (m) =>
+          m.direction === "outbound" &&
+          m.body.includes("Escribe tu respuesta") &&
+          m._creationTime >= pendingRelay.relayCreatedAt,
+      );
+      console.log(`[staff-mode] ${staff.kind} alreadyPrompted=${alreadyPrompted} relay=${pendingRelay.contactName}`);
+
+      if (!alreadyPrompted) {
+        // Paso 1: mostrar la solicitud pendiente, no reenviar todavía
+        const summary =
+          `📋 *Solicitud de ${pendingRelay.contactName}:*\n\n` +
+          `${pendingRelay.relayBody.replace(`📋 SOLICITUD PARA ${staff.relayTarget}\n`, "").trim()}\n\n` +
+          `Escribe tu respuesta y te la enviamos automáticamente a ${pendingRelay.contactName}.`;
+        await send(args.conversationId, args.contactPhone, summary, "agent");
+        return;
+      }
+
+      // Paso 2: pulir la nota con el LLM antes de enviarla al padre
+      const author = staff.kind === "director" ? "La directora" : `La maestra (${staff.name})`;
+      const polishPrompt = `Eres el asistente de comunicación de ${schoolData.name}.
+${author} te manda una nota informal y debes convertirla en un mensaje cálido y profesional para el padre/madre de familia.
 
 Contexto del relay original:
 ${pendingRelay.relayBody}
 
 Nombre del padre/madre: ${pendingRelay.contactName}
 
-Nota de la directora (texto crudo, puede ser incompleto o informal):
+Nota original (texto crudo, puede ser incompleto o informal):
 "${args.inboundText}"
 
 Escribe UN mensaje directo al padre/madre en español mexicano, cálido, breve (máx 60 palabras).
 - Usa su nombre
-- Refleja la intención de la directora aunque el texto sea incompleto
-- NO uses comillas, NO expliques que es un mensaje de la directora, escríbelo en primera persona de la escuela
+- Refleja la intención de la nota aunque el texto sea incompleto
+- NO uses comillas, NO expliques que es un mensaje reenviado, escríbelo en primera persona de quien responde
 - Solo devuelve el mensaje final, sin JSON ni explicaciones`;
 
-          let polishedText: string;
-          try {
-            polishedText = await callLLMRaw(polishPrompt, [], 256);
-            // Si el LLM devuelve JSON o texto raro, usar el texto crudo como fallback
-            if (polishedText.startsWith("{") || polishedText.length < 5) {
-              throw new Error("respuesta inesperada");
-            }
-          } catch {
-            polishedText = args.inboundText;
-          }
-
-          const fwdBody = `📩 *Respuesta de Dirección:*\n\n${polishedText}`;
-
-          await ctx.runMutation(internal.conversations.addMessage, {
-            conversationId: pendingRelay.conversationId,
-            direction: "outbound",
-            sender: "human",
-            body: fwdBody,
-          });
-          await ctx.runAction(internal.external.kapso.sendText, {
-            phoneNumberId: args.phoneNumberId,
-            to: pendingRelay.contactPhone,
-            body: fwdBody,
-          });
-
-          // Marcar relay como resuelto (cambia 📋 → 📋✅)
-          await ctx.runMutation(internal.conversations.resolveRelay, {
-            messageId: pendingRelay.relayMessageId,
-          });
-
-          // Confirmar a la directora
-          const ack = `✅ Mensaje enviado a ${pendingRelay.contactName}.`;
-          await ctx.runMutation(internal.conversations.addMessage, {
-            conversationId: args.conversationId,
-            direction: "outbound",
-            sender: "agent",
-            body: ack,
-          });
-          await ctx.runAction(internal.external.kapso.sendText, {
-            phoneNumberId: args.phoneNumberId,
-            to: args.contactPhone,
-            body: ack,
-          });
+      let polishedText: string;
+      try {
+        // La API exige al menos un mensaje; el contexto completo va en el system prompt
+        polishedText = await callLLMRaw(polishPrompt, [{ role: "user", content: "Escribe el mensaje final." }], 256);
+        // Si el LLM devuelve JSON o texto raro, usar el texto crudo como fallback
+        if (polishedText.startsWith("{") || polishedText.length < 5) {
+          throw new Error("respuesta inesperada");
         }
-        return;
+      } catch {
+        polishedText = args.inboundText;
       }
+
+      const from = staff.kind === "director" ? "Dirección" : staff.name;
+      await send(pendingRelay.conversationId, pendingRelay.contactPhone, `📩 *Respuesta de ${from}:*\n\n${polishedText}`, "human");
+
+      // Marcar relay como resuelto (cambia 📋 → 📋✅)
+      await ctx.runMutation(internal.conversations.resolveRelay, { messageId: pendingRelay.relayMessageId });
+
+      await send(args.conversationId, args.contactPhone, `✅ Mensaje enviado a ${pendingRelay.contactName}.`, "agent");
+      return;
     }
 
     // ── Modo padre: número registrado como papá/mamá ─────────────────
@@ -303,17 +298,30 @@ Escribe UN mensaje directo al padre/madre en español mexicano, cálido, breve (
           }));
 
       console.log("[parent-mode] parentName:", parentName, "| historyMsgs:", historyData.messages.length, "| llmMsgs:", llmMessages.length);
-      let parentReply: { text: string; intent: string; relay_message: string | null; slot_iso?: string | null };
+      let parentReply: {
+        text: string;
+        intent: string;
+        relay_message: string | null;
+        relay_to?: "maestra" | "direccion" | null;
+        slot_iso?: string | null;
+      };
+      let raw: string | null = null;
       try {
-        const raw = await callLLMRaw(systemPrompt, llmMessages, 2048);
+        raw = await callLLMRaw(systemPrompt, llmMessages, 2048);
         parentReply = JSON.parse(raw);
       } catch (err) {
-        console.error("[parent-mode] JSON parse / LLM error:", err, "| systemPromptLen:", systemPrompt.length);
-        parentReply = {
-          text: "Disculpa, tengo un problema técnico. Intenta de nuevo en un momento.",
-          intent: "reply",
-          relay_message: null,
-        };
+        if (raw && !raw.trimStart().startsWith("{") && raw.trim().length > 1) {
+          // Respuesta en texto plano: válida como respuesta normal
+          console.warn("[parent-mode] respuesta sin JSON, se usa como texto");
+          parentReply = { text: raw.trim(), intent: "reply", relay_message: null };
+        } else {
+          console.error("[parent-mode] JSON parse / LLM error:", err, "| systemPromptLen:", systemPrompt.length);
+          parentReply = {
+            text: "Disculpa, tengo un problema técnico. Intenta de nuevo en un momento.",
+            intent: "reply",
+            relay_message: null,
+          };
+        }
       }
 
       // ── Cal.com: cita presencial en modo padre ────────────────────────
@@ -375,13 +383,23 @@ Escribe UN mensaje directo al padre/madre en español mexicano, cálido, breve (
         body: parentReply.text,
       });
 
-      // Si el agente quiere escalar a dirección, guardar nota + notificar directora
+      // Solicitud para la maestra o para dirección: guardar nota + notificar por WhatsApp
       if (parentReply.intent === "relay_teacher" && parentReply.relay_message) {
         const parentName = parentCtx.parent.fullName ?? "Papá/Mamá";
-        const childName = parentCtx.children[0]?.student.fullName ?? "";
-        const note = `📋 SOLICITUD PARA DIRECCIÓN\nDe: ${parentName} (mamá/papá de ${childName})\n\n${parentReply.relay_message}`;
+        const child = parentCtx.children[0];
+        const childName = child?.student.fullName ?? "";
+        const teacher = child?.teacher;
+        // A la maestra solo si el padre lo pidió y tiene WhatsApp registrado; si no, a dirección
+        const toTeacher = parentReply.relay_to === "maestra" && Boolean(teacher?.phone);
+        const recipient = toTeacher
+          ? { relayTarget: teacher!.fullName, phone: teacher!.phone!, contactName: teacher!.fullName, label: teacher!.fullName }
+          : schoolData.directorPhone
+            ? { relayTarget: "DIRECCIÓN", phone: schoolData.directorPhone, contactName: "Directora", label: "Dirección" }
+            : null;
 
-        // Guardar nota interna en dashboard
+        const note = `📋 SOLICITUD PARA ${recipient?.relayTarget ?? "DIRECCIÓN"}\nDe: ${parentName} (mamá/papá de ${childName})\n\n${parentReply.relay_message}`;
+
+        // Nota interna (visible en el dashboard, oculta en el portal)
         await ctx.runMutation(internal.conversations.addMessage, {
           conversationId: args.conversationId,
           direction: "outbound",
@@ -389,40 +407,35 @@ Escribe UN mensaje directo al padre/madre en español mexicano, cálido, breve (
           body: note,
         });
 
-        // Notificar a la directora por WhatsApp si tiene número registrado
-        if (schoolData.directorPhone) {
-          const directorMsg =
+        if (recipient) {
+          const staffMsg =
             `📋 *${schoolData.name} — Solicitud de padre*\n\n` +
             `De: ${parentName} (mamá/papá de ${childName})\n\n` +
             `${parentReply.relay_message}\n\n` +
             `Escribe tu respuesta y te la enviamos automáticamente a ${parentName}.`;
 
           try {
-            // Crear/obtener conversación de la directora y guardar el mensaje allí
-            // para que el two-step detection funcione cuando ella responda
-            const directorConvId = await ctx.runMutation(
-              internal.conversations.createOrGet,
-              {
-                schoolId: args.schoolId,
-                contactPhone: schoolData.directorPhone,
-                channel: "whatsapp",
-                contactName: "Directora",
-              },
-            );
+            // Guardar la notificación en la conversación de quien la recibe
+            // para que el flujo de dos pasos funcione cuando responda
+            const staffConvId = await ctx.runMutation(internal.conversations.createOrGet, {
+              schoolId: args.schoolId,
+              contactPhone: recipient.phone,
+              channel: "whatsapp",
+              contactName: recipient.contactName,
+            });
             await ctx.runMutation(internal.conversations.addMessage, {
-              conversationId: directorConvId,
+              conversationId: staffConvId,
               direction: "outbound",
               sender: "agent",
-              body: directorMsg,
+              body: staffMsg,
             });
-
             await ctx.runAction(internal.external.kapso.sendText, {
               phoneNumberId: args.phoneNumberId,
-              to: schoolData.directorPhone,
-              body: directorMsg,
+              to: recipient.phone,
+              body: staffMsg,
             });
           } catch (err) {
-            console.error("[relay] Error notificando a directora:", err);
+            console.error(`[relay] Error notificando a ${recipient.label}:`, err);
           }
         }
       }

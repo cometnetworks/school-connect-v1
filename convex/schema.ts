@@ -151,6 +151,7 @@ export default defineSchema({
       v.literal("admission"),
       v.literal("parent"),
       v.literal("director"),
+      v.literal("teacher"),
     )),
   })
     .index("by_school", ["schoolId"])
