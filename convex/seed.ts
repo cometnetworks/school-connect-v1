@@ -883,14 +883,22 @@ export const enrichAlinaInfo = internalMutation({
     if (!alina) return { note: "Instituto Alina no encontrado" };
 
     await ctx.db.patch(alina._id, {
+      // Datos públicos verificados (oct 2026)
+      address:
+        "Calle 65 #584 por 54-B y 56-A, Fracc. La Herradura, Ciudad Caucel, C.P. 97314, Mérida, Yucatán " +
+        "(también hay acceso por Calle 52 #867).",
+      phone: "+52 999 495 2081",
       admissionsInfo: {
         // ── Oferta educativa ───────────────────────────────────────────
-        gradesOffered: "1° a 6° de primaria (ciclo completo de educación básica primaria)",
+        gradesOffered:
+          "Preescolar (Jardín de Niños Alina) y primaria de 1° a 6°. " +
+          "Escuela particular con validez oficial SEP: CCT primaria 31PPR0040W, CCT preescolar 31PJN0416B.",
 
         educationModel:
-          "Educación primaria bilingüe español-inglés con certificación Progrentis reconocida internacionalmente. " +
-          "Sistema SEP con plan de estudios enriquecido. Enfoque en desarrollo cognitivo, dominio del inglés desde 1° grado " +
-          "y habilidades del siglo XXI. Grupos reducidos (máx 20 alumnos) para atención personalizada.",
+          "Educación bilingüe español-inglés con la metodología AMCO, que integra el desarrollo de competencias y el idioma inglés " +
+          "en todo el programa académico. Sistema SEP. " +
+          "Programa socioemocional Happy: sesiones de mindfulness y atención plena para el bienestar y la autorregulación emocional. " +
+          "Formación integral con valores y disciplina positiva, en grupos reducidos con atención personalizada.",
 
         schedule:
           "Lunes a viernes de 7:00 AM a 3:00 PM. " +
@@ -898,8 +906,10 @@ export const enrichAlinaInfo = internalMutation({
           "Los viernes de Consejo Técnico Escolar no hay clases para los alumnos (aprox. 1 vez al mes, se avisa con anticipación).",
 
         differentiators:
-          "✓ Bilingüe español-inglés desde 1° grado. " +
-          "✓ Certificación Progrentis con reconocimiento internacional. " +
+          "✓ Bilingüe español-inglés con metodología AMCO. " +
+          "✓ Programa socioemocional Happy (mindfulness y atención plena). " +
+          "✓ Valores y disciplina positiva. " +
+          "✓ Preescolar y primaria en la misma escuela: continuidad desde el kínder. " +
           "✓ Grupos pequeños (máx 20 alumnos) para atención personalizada. " +
           "✓ Instalaciones modernas: laboratorio de cómputo, biblioteca, canchas deportivas. " +
           "✓ Talleres extracurriculares: ajedrez, danza, robótica (costo adicional). " +
@@ -928,7 +938,7 @@ export const enrichAlinaInfo = internalMutation({
           "ÚTILES ESCOLARES:\n" +
           "• Lista de útiles se entrega al inscribirse (costo aproximado $800-1,200 MXN según grado).\n" +
           "• Libros de texto SEP gratuitos provistos por la escuela.\n" +
-          "• Libro de inglés Progrentis: incluido en inscripción.\n\n" +
+          "• Materiales de inglés AMCO: se informan al inscribirse.\n\n" +
           "UNIFORME:\n" +
           "• Uniforme diario (pants azul marino + polo blanco con logo): $1,200 MXN aprox.\n" +
           "• Uniforme de deportes (pants gris + playera gris): $850 MXN aprox.\n" +
@@ -1023,21 +1033,28 @@ export const enrichAlinaInfo = internalMutation({
 
         // ── Requisitos ─────────────────────────────────────────────────
         requirements:
-          "DOCUMENTOS PARA INSCRIPCIÓN:\n" +
-          "• Acta de nacimiento original + 2 copias\n" +
-          "• CURP del alumno (impresa)\n" +
-          "• Comprobante de domicilio reciente (máx 3 meses)\n" +
-          "• Certificado o constancia del último grado cursado\n" +
-          "• Cartilla de vacunación completa (copia)\n" +
-          "• 4 fotografías tamaño infantil a color\n" +
-          "• Identificación oficial del padre/madre o tutor\n" +
-          "• Comprobante de pago de inscripción\n\n" +
+          "DOCUMENTOS DEL ALUMNO (expediente oficial SEGEY):\n" +
+          "• Acta de nacimiento original y copias (si nació en el extranjero: apostillada y traducida por perito)\n" +
+          "• CURP actualizada\n" +
+          "• Constancia o certificado de preescolar (para ingresar a 1° de primaria)\n" +
+          "• Boletas oficiales SEP/SEGEY del grado anterior (para ingresar de 2° a 6°)\n" +
+          "• Certificado médico vigente con tipo de sangre\n" +
+          "• Fotografías tamaño infantil (entre 4 y 6)\n\n" +
+          "DOCUMENTOS DE PADRES O TUTORES:\n" +
+          "• INE o pasaporte vigente de ambos padres o tutores\n" +
+          "• CURP de los padres o tutores\n" +
+          "• Comprobante de domicilio (luz o agua) no mayor a 3 meses\n" +
+          "• Ficha de inscripción con datos generales y teléfonos de emergencia\n\n" +
+          "SI VIENE DE OTRA ESCUELA (2° a 6°):\n" +
+          "• Carta de buena conducta de la escuela anterior\n" +
+          "• Carta de no adeudo si la escuela anterior era particular\n\n" +
           "PROCESO DE ADMISIÓN:\n" +
-          "1. Visita de conocimiento (presencial, 45 min) — sin costo.\n" +
-          "2. Solicitud de inscripción y entrega de documentos.\n" +
-          "3. Evaluación de ubicación de grado (si viene de otra escuela).\n" +
-          "4. Pago de inscripción para reservar lugar.\n" +
-          "5. Entrega de lista de útiles y datos de proveedor de uniforme.",
+          "1. Visita a la escuela (presencial, 45 min, sin costo).\n" +
+          "2. Entrevista con dirección y evaluación diagnóstica (español, matemáticas e inglés).\n" +
+          "3. Entrega de documentos.\n" +
+          "4. Pago de inscripción y firma del reglamento interno y contrato de servicios.\n" +
+          "5. Entrega de lista de útiles y datos del proveedor de uniformes.\n" +
+          "La lista final de documentos la confirma la dirección en la visita.",
 
         // ── Visitas ────────────────────────────────────────────────────
         visitInstructions:
@@ -1046,19 +1063,26 @@ export const enrichAlinaInfo = internalMutation({
           "La directora te recibe personalmente para mostrarte las instalaciones, " +
           "presentarte con los maestros y resolver todas tus dudas. " +
           "No hay costo y no necesitas traer documentos para la visita. " +
-          "Solo agenda tu horario por este WhatsApp y te confirmamos.",
+          "Solo agenda tu horario por este WhatsApp y te confirmamos. " +
+          "Dirección: Calle 65 #584 por 54-B y 56-A, Fracc. La Herradura, Ciudad Caucel, Mérida. " +
+          "Teléfono: 999 495 2081. Correo: institutoeducativoalina@outlook.com.",
 
         // ── FAQs ───────────────────────────────────────────────────────
         faqs:
           "¿Tienen transporte escolar? No contamos con transporte propio, pero te podemos recomendar servicio privado de camionetas en la zona.\n" +
           "¿Cuántos alumnos hay por salón? Máximo 20 alumnos por grupo para garantizar atención personalizada.\n" +
-          "¿El inglés es desde 1°? Sí, inmersión bilingüe desde primer grado con maestro nativo o bilingüe certificado.\n" +
+          "¿Cómo enseñan inglés? Con la metodología AMCO, bilingüe, integrada a todo el programa académico.\n" +
+          "¿Tienen apoyo emocional? Sí, el programa Happy con sesiones de mindfulness y atención plena.\n" +
+          "¿Tienen validez oficial? Sí, escuela particular incorporada a la SEP. CCT primaria 31PPR0040W, preescolar 31PJN0416B.\n" +
+          "¿Dónde están? Calle 65 #584 por 54-B y 56-A, Fracc. La Herradura, Ciudad Caucel, Mérida (acceso también por Calle 52 #867).\n" +
+          "¿Cómo los contacto? Teléfono 999 495 2081, correo institutoeducativoalina@outlook.com o por este WhatsApp.\n" +
           "¿Se aceptan alumnos a mitad de ciclo? Sí, sujeto a disponibilidad de lugar en el grado. Se hace evaluación de nivel.\n" +
           "¿Tienen descuento para hermanos? Sí, 10% de descuento en la colegiatura del segundo hijo inscrito.\n" +
           "¿Cómo se comunican los avisos? Por WhatsApp a través del sistema escolar y en el portal de padres.\n" +
           "¿El seguro escolar cubre qué? Accidentes dentro y fuera del plantel durante horario escolar. No incluye enfermedades.\n" +
           "¿Cuándo inicia el siguiente ciclo escolar? El ciclo 2026-2027 inició el 31 de agosto de 2026 y aún hay lugares en algunos grados. Inscripciones para el ciclo 2027-2028 abren en marzo de 2027.\n" +
-          "¿Tienen prepa o secundaria? Solo primaria (1° a 6°). Al terminar 6° te orientamos con secundarias afines a nuestro modelo.",
+          "¿Tienen preescolar? Sí, el Jardín de Niños Alina. Costos y horarios de preescolar se confirman con dirección en la visita.\n" +
+          "¿Tienen secundaria? No, solo preescolar y primaria. Al terminar 6° te orientamos con secundarias afines a nuestro modelo.",
 
         tuitionRanges:
           "$2,100 a $2,900 MXN/mes según grado. Inscripción: $6,800 a $7,900 MXN. 10 mensualidades por ciclo (referencia 2026-2027).",
@@ -1205,7 +1229,7 @@ export const refreshDemo2026 = internalMutation({
       {
         subject: "Inglés",
         title: "Unit 2 vocabulary — My Community",
-        description: "Completar las páginas 18 y 19 del libro Progrentis y estudiar el vocabulario de lugares de la ciudad.",
+        description: "Completar las páginas 18 y 19 del libro AMCO y estudiar el vocabulario de lugares de la ciudad.",
         dueDate: at("2026-10-23T08:00:00"),
         createdAt: at("2026-10-14T13:30:00"),
       },
@@ -1329,5 +1353,37 @@ export const refreshDemo2026 = internalMutation({
     }
 
     return { note: "Demo 2026-2027 listo", groupId, zaidId: zaid._id };
+  },
+});
+
+/** Reemplaza un texto en las tareas de los grupos de Alina (p. ej. "Progrentis" → "AMCO") */
+export const replaceInAlinaAssignments = internalMutation({
+  args: { from: v.string(), to: v.string() },
+  handler: async (ctx, { from, to }) => {
+    const alina = await ctx.db
+      .query("schools")
+      .withIndex("by_slug", (q) => q.eq("slug", "instituto-alina"))
+      .first();
+    if (!alina) return { note: "Alina no encontrada" };
+    const groups = await ctx.db
+      .query("groups")
+      .withIndex("by_school", (q) => q.eq("schoolId", alina._id))
+      .collect();
+    let updated = 0;
+    for (const g of groups) {
+      const tasks = await ctx.db
+        .query("assignments")
+        .withIndex("by_group", (q) => q.eq("groupId", g._id))
+        .collect();
+      for (const t of tasks) {
+        const title = t.title.replaceAll(from, to);
+        const description = t.description?.replaceAll(from, to);
+        if (title !== t.title || description !== t.description) {
+          await ctx.db.patch(t._id, { title, description });
+          updated++;
+        }
+      }
+    }
+    return { updated };
   },
 });

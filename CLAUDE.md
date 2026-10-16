@@ -24,7 +24,7 @@ Piloto: 2 escuelas en Mérida (Instituto Alina, Little Genius), expansión a 10.
 - Netlify solo construye Next.js; Convex se despliega aparte.
 
 ## Acceso (portal y dashboard)
-- Link personal por WhatsApp (`convex/auth.ts`): el usuario escribe *portal* a Aurora; si es
+- Link personal por WhatsApp (`convex/auth.ts`): el usuario escribe *portal* a la asistente (`schools.agentName`, default Luna); si es
   dirección o padre registrado, el webhook (firma HMAC verificada) responde con
   `/acceso/<slug>#token` (un solo uso, 15 min) y la página lo lleva a lo suyo según su rol.
 - Roles: `director` (teléfono = `schools.directorPhone`) y `parent` (usuario con `parentStudentLinks`).

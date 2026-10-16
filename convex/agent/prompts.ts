@@ -78,6 +78,9 @@ ${tuitionPolicy}`;
 INFORMACIÓN GENERAL DE LA ESCUELA
 ════════════════════════════════════════
 
+📍 UBICACIÓN Y CONTACTO:
+${school.address ?? "Consultar con la escuela."}${school.phone ? `\nTeléfono: ${school.phone}` : ""}
+
 🕐 HORARIO:
 ${info.schedule ?? "Consultar con la escuela."}
 
@@ -155,6 +158,9 @@ export function buildAdmissionsSystemPrompt(
 ════════════════════════════════════════
 INFORMACIÓN COMPLETA DE LA ESCUELA
 ════════════════════════════════════════
+
+📍 UBICACIÓN Y CONTACTO:
+${school.address ?? "Consultar con la escuela."}${school.phone ? `\nTeléfono: ${school.phone}` : ""}
 
 📚 OFERTA EDUCATIVA Y HORARIO:
 - Niveles: ${info.gradesOffered ?? "1° a 6° de primaria"}
