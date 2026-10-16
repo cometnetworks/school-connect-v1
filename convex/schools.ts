@@ -21,6 +21,7 @@ export const patchBySlug = internalMutation({
     directorPhone: v.optional(v.string()),
     whatsappPhoneNumberId: v.optional(v.string()),
     whatsappNumber: v.optional(v.string()), // número visible para el link wa.me del login
+    agentName: v.optional(v.string()), // nombre de la asistente de WhatsApp
   },
   handler: async (ctx, { slug, ...fields }) => {
     const school = await ctx.db

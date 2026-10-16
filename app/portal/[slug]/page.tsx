@@ -101,7 +101,15 @@ function StudentSelector({
 }
 
 // ─── Chat history ────────────────────────────────────────────────────
-function ChatHistory({ slug, studentId }: { slug: string; studentId: Id<"students"> }) {
+function ChatHistory({
+  slug,
+  studentId,
+  agentName,
+}: {
+  slug: string;
+  studentId: Id<"students">;
+  agentName: string;
+}) {
   const sessionToken = useSessionToken();
   const chatData = useQuery(api.portal.parentConversation, { schoolSlug: slug, studentId, sessionToken });
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -116,7 +124,7 @@ function ChatHistory({ slug, studentId }: { slug: string; studentId: Id<"student
     <div className="md:col-span-2 bg-white rounded-2xl border border-border shadow-sm overflow-hidden">
       <div className="px-6 py-4 border-b border-border flex items-center gap-2">
         <span className="text-base">💬</span>
-        <h2 className="font-semibold text-fg text-sm">Mensajes con Aurora</h2>
+        <h2 className="font-semibold text-fg text-sm">Mensajes con {agentName}</h2>
         <span className="ml-auto text-xs font-medium text-primary bg-primary/8 px-2 py-0.5 rounded-full border border-primary/20">
           WhatsApp ✨
         </span>
@@ -132,7 +140,7 @@ function ChatHistory({ slug, studentId }: { slug: string; studentId: Id<"student
             <div className="bg-white/80 rounded-xl px-5 py-4 text-center shadow-sm">
               <p className="text-sm font-medium text-zinc-600">Sin mensajes aún</p>
               <p className="text-xs text-zinc-400 mt-1">
-                Escríbele a Aurora por WhatsApp<br />para ver tu historial aquí.
+                Escríbele a {agentName} por WhatsApp<br />para ver tu historial aquí.
               </p>
             </div>
           </div>
@@ -154,7 +162,7 @@ function ChatHistory({ slug, studentId }: { slug: string; studentId: Id<"student
                 }`}
               >
                 {!isParent && (
-                  <p className="text-[11px] font-semibold text-primary mb-0.5">Aurora ✨</p>
+                  <p className="text-[11px] font-semibold text-primary mb-0.5">{agentName} ✨</p>
                 )}
                 <p className="text-sm text-zinc-800 whitespace-pre-wrap leading-snug">{msg.body}</p>
                 <p className="text-[10px] text-zinc-400 text-right mt-0.5">{time}</p>
@@ -365,8 +373,8 @@ function PortalHome({
             </div>
           </div>
 
-          {/* Chat con Aurora */}
-          <ChatHistory slug={slug} studentId={studentId} />
+          {/* Chat con la asistente */}
+          <ChatHistory slug={slug} studentId={studentId} agentName={school.agentName} />
 
           {/* Próximos eventos */}
           <div className="md:col-span-2 bg-white rounded-2xl border border-border shadow-sm overflow-hidden">

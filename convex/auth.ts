@@ -4,10 +4,11 @@ import { ConvexError, v } from "convex/values";
 import { Doc } from "./_generated/dataModel";
 import { normalizeMxPhone, phoneVariants, samePhone } from "./lib/phone";
 import { getSchoolSession, getSessionByToken, randomHex, sha256Hex } from "./lib/session";
+import { agentNameOf } from "./lib/agent";
 
 /**
  * Acceso con link personal por WhatsApp:
- * 1. El usuario le escribe "portal" a Aurora.
+ * 1. El usuario le escribe "portal" a la asistente de la escuela.
  * 2. El webhook (con firma verificada) identifica el número y, si es dirección
  *    o un padre registrado, responde con un link de un solo uso (15 min).
  * 3. La página /acceso/[slug] canjea el link por una sesión de 30 días y
@@ -96,7 +97,7 @@ export const consumeMagicLink = internalMutation({
       .first();
     const school = link ? await ctx.db.get(link.schoolId) : null;
     if (!link || !school || school.slug !== schoolSlug || link.usedAt || link.expiresAt < Date.now()) {
-      throw new ConvexError("Este link ya se usó o venció. Escríbele *portal* a Aurora para recibir uno nuevo.");
+      throw new ConvexError("Este link ya se usó o venció. Escribe *portal* al WhatsApp de la escuela para recibir uno nuevo.");
     }
     await ctx.db.patch(link._id, { usedAt: Date.now() });
     await ctx.db.insert("sessions", {
@@ -137,7 +138,11 @@ export const schoolAccessInfo = query({
       .withIndex("by_slug", (q) => q.eq("slug", schoolSlug))
       .first();
     if (!school) return null;
-    return { name: school.name, whatsappNumber: school.whatsappNumber?.replace(/\D/g, "") ?? null };
+    return {
+      name: school.name,
+      agentName: agentNameOf(school),
+      whatsappNumber: school.whatsappNumber?.replace(/\D/g, "") ?? null,
+    };
   },
 });
 

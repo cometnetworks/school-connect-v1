@@ -4,6 +4,7 @@ import { internal } from "../_generated/api";
 import { buildAdmissionsSystemPrompt, buildParentSystemPrompt, buildSlotsMessage } from "./prompts";
 import type { SlotOption } from "../external/calcom";
 import { samePhone } from "../lib/phone";
+import { agentNameOf } from "../lib/agent";
 
 type AgentResponse = {
   text: string;
@@ -159,7 +160,7 @@ export const processMessage = internalAction({
 
     // ── Personal escolar (dirección o maestra): responde solicitudes de padres ──
     // Cada solicitud se guarda como nota "📋 SOLICITUD PARA <destinatario>" en la
-    // conversación del padre; quien la recibe contesta y Aurora se la reenvía.
+    // conversación del padre; quien la recibe contesta y la asistente se la reenvía.
     let staff: { kind: "director" | "teacher"; name: string; relayTarget: string } | null = null;
     if (schoolData.directorPhone && samePhone(schoolData.directorPhone, args.contactPhone)) {
       staff = { kind: "director", name: "Dirección", relayTarget: "DIRECCIÓN" };
@@ -193,7 +194,7 @@ export const processMessage = internalAction({
         const ackBody =
           staff.kind === "director"
             ? "✅ Mensaje recibido. Para ver prospectos, citas y mensajes de padres, escribe *portal* y te mando tu acceso al panel de dirección."
-            : `👋 Hola, ${staff.name}. Soy Aurora, la asistente de ${schoolData.name}. Cuando un papá o mamá de tu grupo quiera hablar contigo, te llegará su mensaje por aquí y podrás contestarle directamente.`;
+            : `👋 Hola, ${staff.name}. Soy ${agentNameOf(schoolData)}, la asistente de ${schoolData.name}. Cuando un papá o mamá de tu grupo quiera hablar contigo, te llegará su mensaje por aquí y podrás contestarle directamente.`;
         await send(args.conversationId, args.contactPhone, ackBody, "agent");
         return;
       }

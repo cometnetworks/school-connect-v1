@@ -58,6 +58,7 @@ export default defineSchema({
     calComParentEventTypeId: v.optional(v.string()),   // padres (cita con dirección/maestra)
     whatsappPhoneNumberId: v.optional(v.string()),
     directorPhone: v.optional(v.string()),
+    agentName: v.optional(v.string()), // nombre de la asistente de WhatsApp (default "Luna")
   })
     .index("by_slug", ["slug"])
     .index("by_whatsapp_phone", ["whatsappPhoneNumberId"]),
@@ -268,7 +269,7 @@ export default defineSchema({
     .index("by_school", ["schoolId"]),
 
   // ─── Acceso al portal/dashboard (link personal por WhatsApp) ─────
-  // El usuario escribe "portal" a Aurora y recibe un link de un solo uso.
+  // El usuario escribe "portal" a la asistente y recibe un link de un solo uso.
   magicLinks: defineTable({
     tokenHash: v.string(), // sha256 del token; el token solo viaja en el link
     schoolId: v.id("schools"),

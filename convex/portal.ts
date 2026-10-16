@@ -2,6 +2,7 @@ import { query } from "./_generated/server";
 import { v } from "convex/values";
 import { canAccessStudent, getSchoolSession } from "./lib/session";
 import { phoneVariants } from "./lib/phone";
+import { agentNameOf } from "./lib/agent";
 
 /** Vista principal del portal de padres — datos de un alumno */
 export const parentHome = query({
@@ -83,7 +84,7 @@ export const parentHome = query({
       .take(3);
 
     return {
-      school: { _id: school._id, name: school.name, slug: school.slug },
+      school: { _id: school._id, name: school.name, slug: school.slug, agentName: agentNameOf(school) },
       student,
       groupId,
       announcements,

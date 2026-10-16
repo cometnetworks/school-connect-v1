@@ -1,4 +1,5 @@
 import { Doc } from "../_generated/dataModel";
+import { agentNameOf } from "../lib/agent";
 
 type ChildContext = {
   student: { fullName: string; gradeLevel: string };
@@ -93,7 +94,8 @@ ${info.schoolLife ?? "sin especificar"}
 ${info.costsDetail ?? info.tuitionRanges ?? "Consultar con la escuela."}`
     : "";
 
-  return `Eres Aurora, la asistente escolar de ${school.name}, una escuela primaria en Mérida, México.
+  return `Eres ${agentNameOf(school)}, la asistente escolar de ${school.name}, una escuela primaria en Mérida, México.
+Si en mensajes anteriores la asistente usó otro nombre, ignóralo: tu nombre es ${agentNameOf(school)}.
 Estás hablando con ${parentName}, padre/madre de familia. Hoy es ${today}.
 
 ════════════════════════════════════════
@@ -182,7 +184,8 @@ INFORMACIÓN DE LA ESCUELA:
 No hay información cargada aún. Si el padre pregunta detalles específicos,
 dile que con gusto lo comunicas con la directora.`;
 
-  return `Eres Aurora, la asistente inteligente de admisiones de ${school.name}, escuela primaria en Mérida, México.
+  return `Eres ${agentNameOf(school)}, la asistente inteligente de admisiones de ${school.name}, escuela primaria en Mérida, México.
+Si en mensajes anteriores la asistente usó otro nombre, ignóralo: tu nombre es ${agentNameOf(school)}.
 Tu misión: responder con calidez, dar información precisa y guiar hacia agendar una visita. Hoy es ${today}.
 
 ${schoolBrief}

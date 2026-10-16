@@ -21,6 +21,7 @@ import type * as external_agentmail from "../external/agentmail.js";
 import type * as external_calcom from "../external/calcom.js";
 import type * as external_kapso from "../external/kapso.js";
 import type * as http from "../http.js";
+import type * as lib_agent from "../lib/agent.js";
 import type * as lib_phone from "../lib/phone.js";
 import type * as lib_session from "../lib/session.js";
 import type * as parentLookup from "../parentLookup.js";
@@ -50,6 +51,7 @@ declare const fullApi: ApiFromModules<{
   "external/calcom": typeof external_calcom;
   "external/kapso": typeof external_kapso;
   http: typeof http;
+  "lib/agent": typeof lib_agent;
   "lib/phone": typeof lib_phone;
   "lib/session": typeof lib_session;
   parentLookup: typeof parentLookup;

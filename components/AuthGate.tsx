@@ -121,8 +121,8 @@ function RequestAccess({ slug, title }: { slug: string; title: string }) {
     <CardShell title={title} subtitle={info?.name ?? "School Connect"}>
       <div className="space-y-4">
         <p className="text-sm text-fg">
-          Para entrar, escríbele <span className="font-semibold">portal</span> a Aurora por WhatsApp y te
-          mandará tu acceso personal.
+          Para entrar, escríbele <span className="font-semibold">portal</span> a {info?.agentName ?? "la asistente"}{" "}
+          por WhatsApp y te mandará tu acceso personal.
         </p>
         {waLink && (
           <a
@@ -163,7 +163,7 @@ export function RedeemAccess({ slug }: { slug: string }) {
     window.history.replaceState(null, "", window.location.pathname);
     const attempt = token
       ? redeem({ schoolSlug: slug, token })
-      : Promise.reject(new ConvexError("Este link está incompleto. Escríbele *portal* a Aurora para recibir uno nuevo."));
+      : Promise.reject(new ConvexError("Este link está incompleto. Escribe *portal* al WhatsApp de la escuela para recibir uno nuevo."));
     attempt
       .then(({ sessionToken, role }) => {
         saveToken(sessionToken);
