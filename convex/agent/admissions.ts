@@ -155,7 +155,7 @@ export const processMessage = internalAction({
         if (!pendingRelay) {
           // Puede ser que la directora esté respondiendo a una notificación de
           // prospecto (escalate). En ese caso solo confirmamos recepción.
-          const ackBody = "✅ Mensaje recibido. Los prospectos pendientes los puedes ver en el panel de dirección: schoolconnectmx.netlify.app/dashboard/instituto-alina";
+          const ackBody = "✅ Mensaje recibido. Para ver prospectos, citas y mensajes de padres, escribe *portal* y te mando tu acceso al panel de dirección.";
           await ctx.runMutation(internal.conversations.addMessage, {
             conversationId: args.conversationId,
             direction: "outbound",

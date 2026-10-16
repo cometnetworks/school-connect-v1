@@ -15,6 +15,7 @@ import type * as announcements from "../announcements.js";
 import type * as auth from "../auth.js";
 import type * as betaApplications from "../betaApplications.js";
 import type * as conversations from "../conversations.js";
+import type * as crons from "../crons.js";
 import type * as director from "../director.js";
 import type * as external_agentmail from "../external/agentmail.js";
 import type * as external_calcom from "../external/calcom.js";
@@ -43,6 +44,7 @@ declare const fullApi: ApiFromModules<{
   auth: typeof auth;
   betaApplications: typeof betaApplications;
   conversations: typeof conversations;
+  crons: typeof crons;
   director: typeof director;
   "external/agentmail": typeof external_agentmail;
   "external/calcom": typeof external_calcom;

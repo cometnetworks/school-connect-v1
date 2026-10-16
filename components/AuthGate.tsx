@@ -3,22 +3,48 @@
 import { useAction, useMutation, useQuery } from "convex/react";
 import { ConvexError } from "convex/values";
 import { api } from "@/convex/_generated/api";
-import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type ReactNode,
+} from "react";
 
 // ─── Token de sesión (por escuela, en localStorage) ──────────────────
 const storageKey = (slug: string) => `sc_session_${slug}`;
 
-function useStoredToken(slug: string) {
-  // undefined = aún no se lee localStorage
-  const [token, setToken] = useState<string | null | undefined>(undefined);
+// Respaldo en memoria si el navegador bloquea localStorage (modo privado)
+const memoryStore = new Map<string, string | null>();
+const storeListeners = new Set<() => void>();
 
-  useEffect(() => {
-    try {
-      setToken(localStorage.getItem(storageKey(slug)));
-    } catch {
-      setToken(null);
-    }
-  }, [slug]);
+function readToken(slug: string): string | null {
+  try {
+    return localStorage.getItem(storageKey(slug));
+  } catch {
+    return memoryStore.get(slug) ?? null;
+  }
+}
+
+function subscribeToken(onChange: () => void) {
+  storeListeners.add(onChange);
+  window.addEventListener("storage", onChange);
+  return () => {
+    storeListeners.delete(onChange);
+    window.removeEventListener("storage", onChange);
+  };
+}
+
+function useStoredToken(slug: string) {
+  // undefined durante el render del servidor (aún no hay localStorage)
+  const token = useSyncExternalStore(
+    subscribeToken,
+    () => readToken(slug),
+    () => undefined,
+  );
 
   const save = useCallback(
     (value: string | null) => {
@@ -26,9 +52,9 @@ function useStoredToken(slug: string) {
         if (value) localStorage.setItem(storageKey(slug), value);
         else localStorage.removeItem(storageKey(slug));
       } catch {
-        // Sin storage (modo privado): la sesión dura lo que la pestaña
+        memoryStore.set(slug, value);
       }
-      setToken(value);
+      storeListeners.forEach((l) => l());
     },
     [slug],
   );
@@ -84,170 +110,83 @@ function CardShell({ title, subtitle, children }: { title: string; subtitle: str
   );
 }
 
-// ─── Login con código por WhatsApp ───────────────────────────────────
-type PendingLogin = { code: string; secret: string; waLink: string; expiresAt: number };
+// ─── Sin sesión: pedir acceso por WhatsApp ───────────────────────────
+function RequestAccess({ slug, title }: { slug: string; title: string }) {
+  const info = useQuery(api.auth.schoolAccessInfo, { schoolSlug: slug });
+  const waLink = info?.whatsappNumber
+    ? `https://wa.me/${info.whatsappNumber}?text=${encodeURIComponent("portal")}`
+    : null;
 
-function WhatsAppLogin({
-  slug,
-  title,
-  onToken,
-}: {
-  slug: string;
-  title: string;
-  onToken: (token: string) => void;
-}) {
-  const startLogin = useAction(api.auth.startLogin);
-  const completeLogin = useAction(api.auth.completeLogin);
-  const [phone, setPhone] = useState("");
-  const [pending, setPending] = useState<PendingLogin | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [now, setNow] = useState(() => Date.now());
-  const claimedSecret = useRef<string | null>(null);
-
-  const status = useQuery(api.auth.loginStatus, pending ? { secret: pending.secret } : "skip");
-  const expired = pending !== null && status?.status === "pending" && now > pending.expiresAt;
-
-  // Reloj para detectar que el código venció
-  useEffect(() => {
-    if (!pending) return;
-    const id = setInterval(() => setNow(Date.now()), 5000);
-    return () => clearInterval(id);
-  }, [pending]);
-
-  // En cuanto WhatsApp confirma el número, canjear por la sesión
-  useEffect(() => {
-    if (!pending || status?.status !== "verified") return;
-    if (claimedSecret.current === pending.secret) return; // el secreto solo se canjea una vez
-    claimedSecret.current = pending.secret;
-    completeLogin({ secret: pending.secret })
-      .then(({ token }) => onToken(token))
-      .catch((err) => {
-        setError(errorMessage(err, "No pudimos completar el acceso. Intenta de nuevo."));
-        setPending(null);
-      });
-  }, [pending, status?.status, completeLogin, onToken]);
-
-  const handleStart = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setBusy(true);
-    setError(null);
-    try {
-      setPending(await startLogin({ schoolSlug: slug, phone }));
-      setNow(Date.now());
-    } catch (err) {
-      setError(errorMessage(err, "No pudimos generar tu código. Intenta de nuevo."));
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const reset = () => {
-    setPending(null);
-    setError(null);
-  };
-
-  if (!pending) {
-    return (
-      <CardShell title={title} subtitle="Entra con tu WhatsApp, sin contraseñas.">
-        <form onSubmit={handleStart} className="space-y-4">
-          <div>
-            <label htmlFor="phone" className="block text-xs font-medium text-fg mb-1.5">
-              Tu número de WhatsApp
-            </label>
-            <input
-              id="phone"
-              type="tel"
-              inputMode="numeric"
-              autoComplete="tel-national"
-              placeholder="999 123 4567"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              className="w-full rounded-xl border border-border px-3.5 py-2.5 text-sm text-fg focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
-              required
-            />
-            <p className="text-[11px] text-fg-muted mt-1.5">El número que tienes registrado en la escuela.</p>
-          </div>
-          {error && (
-            <p role="alert" className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
-              {error}
-            </p>
-          )}
-          <button
-            type="submit"
-            disabled={busy || phone.replace(/\D/g, "").length < 10}
-            className="w-full rounded-full bg-primary text-white text-sm font-semibold py-2.5 hover:bg-primary/90 disabled:opacity-50 transition-colors"
-          >
-            {busy ? "Generando código..." : "Continuar"}
-          </button>
-        </form>
-      </CardShell>
-    );
-  }
-
-  if (status?.status === "rejected") {
-    return (
-      <CardShell title={title} subtitle="No pudimos darte acceso.">
+  return (
+    <CardShell title={title} subtitle={info?.name ?? "School Connect"}>
+      <div className="space-y-4">
         <p className="text-sm text-fg">
-          Tu número no está registrado en la escuela. Pide a la dirección que lo agregue y vuelve a intentarlo.
+          Para entrar, escríbele <span className="font-semibold">portal</span> a Aurora por WhatsApp y te
+          mandará tu acceso personal.
         </p>
-        <button onClick={reset} className="mt-4 text-sm font-semibold text-primary hover:underline">
-          Usar otro número
-        </button>
-      </CardShell>
-    );
-  }
+        {waLink && (
+          <a
+            href={waLink}
+            className="flex items-center justify-center gap-2 w-full rounded-full bg-[#25D366] text-white text-sm font-semibold py-2.5 hover:bg-[#1fb857] transition-colors"
+          >
+            Pedir mi acceso por WhatsApp
+          </a>
+        )}
+        <p className="text-[11px] text-fg-muted">
+          Solo funciona con el número que tienes registrado en la escuela. El link es personal y vence en 15
+          minutos.
+        </p>
+      </div>
+    </CardShell>
+  );
+}
 
-  if (status?.status === "verified" || status?.status === "consumed") {
+// ─── Canjear el link recibido por WhatsApp (/acceso/[slug]#token) ────
+export function RedeemAccess({ slug }: { slug: string }) {
+  const redeem = useAction(api.auth.redeemMagicLink);
+  const [, saveToken] = useStoredToken(slug);
+  const [error, setError] = useState<string | null>(null);
+  const started = useRef(false);
+
+  // Un link nuevo abierto en la misma pestaña solo cambia el #: recargar para canjearlo
+  useEffect(() => {
+    const onHashChange = () => window.location.reload();
+    window.addEventListener("hashchange", onHashChange);
+    return () => window.removeEventListener("hashchange", onHashChange);
+  }, []);
+
+  useEffect(() => {
+    if (started.current) return; // el link solo se canjea una vez
+    started.current = true;
+    const token = window.location.hash.slice(1);
+    // Quitar el token de la barra de direcciones y del historial
+    window.history.replaceState(null, "", window.location.pathname);
+    const attempt = token
+      ? redeem({ schoolSlug: slug, token })
+      : Promise.reject(new ConvexError("Este link está incompleto. Escríbele *portal* a Aurora para recibir uno nuevo."));
+    attempt
+      .then(({ sessionToken, role }) => {
+        saveToken(sessionToken);
+        window.location.replace(role === "director" ? `/dashboard/${slug}` : `/portal/${slug}`);
+      })
+      .catch((err) => setError(errorMessage(err, "No pudimos abrir tu acceso. Pide uno nuevo por WhatsApp.")));
+  }, [slug, redeem, saveToken]);
+
+  if (error) {
     return (
-      <CardShell title={title} subtitle="Número verificado.">
-        <Spinner label="Entrando..." />
+      <CardShell title="Acceso" subtitle="No pudimos abrir este link.">
+        <p className="text-sm text-fg">{error.replace(/\*/g, "")}</p>
+        <a href={`/portal/${slug}`} className="mt-4 inline-block text-sm font-semibold text-primary hover:underline">
+          Pedir un acceso nuevo
+        </a>
       </CardShell>
     );
   }
 
   return (
-    <CardShell title={title} subtitle="Último paso: confirma desde tu WhatsApp.">
-      {expired ? (
-        <>
-          <p className="text-sm text-fg">El código venció. Genera uno nuevo para continuar.</p>
-          <button onClick={reset} className="mt-4 text-sm font-semibold text-primary hover:underline">
-            Generar código nuevo
-          </button>
-        </>
-      ) : (
-        <div className="space-y-4">
-          <ol className="text-sm text-fg space-y-1.5 list-decimal list-inside">
-            <li>Toca el botón verde para abrir WhatsApp.</li>
-            <li>Envía el mensaje tal como aparece.</li>
-            <li>Regresa aquí: entrarás automáticamente.</li>
-          </ol>
-          <div className="rounded-xl bg-[#FAF7F2] border border-border py-3 text-center">
-            <p className="text-[11px] text-fg-muted">Tu código</p>
-            <p className="font-mono text-xl font-bold tracking-widest text-primary">{pending.code}</p>
-          </div>
-          <a
-            href={pending.waLink}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center justify-center gap-2 w-full rounded-full bg-[#25D366] text-white text-sm font-semibold py-2.5 hover:bg-[#1fb857] transition-colors"
-          >
-            Abrir WhatsApp y enviar código
-          </a>
-          <div className="flex items-center justify-between">
-            <Spinner label="Esperando confirmación..." />
-            <button onClick={reset} className="text-xs text-fg-muted hover:text-fg">
-              Cambiar número
-            </button>
-          </div>
-          <p className="text-[11px] text-fg-muted">
-            El código vence en 10 minutos. Si abres el portal en una computadora, puedes enviar el mensaje desde tu
-            celular.
-          </p>
-          {error && <p role="alert" className="text-xs text-red-600">{error}</p>}
-        </div>
-      )}
-    </CardShell>
+    <div className="min-h-screen bg-[#FAF7F2] flex items-center justify-center">
+      <Spinner label="Entrando..." />
+    </div>
   );
 }
 
@@ -286,7 +225,7 @@ export function AuthGate({
   }
 
   if (!token || !me) {
-    return <WhatsAppLogin slug={slug} title={title} onToken={saveToken} />;
+    return <RequestAccess slug={slug} title={title} />;
   }
 
   if (requireRole && me.role !== requireRole) {

@@ -1,5 +1,6 @@
 import { httpAction } from "../_generated/server";
 import { internal } from "../_generated/api";
+import { randomHex, sha256Hex } from "../lib/session";
 
 type KapsoMessage = {
   id: string;
@@ -100,25 +101,42 @@ export const handleKapsoWebhook = httpAction(async (ctx, request) => {
     return new Response("ok");
   }
 
-  // Código de acceso al portal (OTP inverso): no pasa por el agente ni se guarda
-  const loginCode = inboundText.toUpperCase().match(/\bSC-[A-Z0-9]{6}\b/)?.[0];
-  if (loginCode) {
-    // Sin firma verificada no hay garantía de que el remitente sea real:
-    // no se otorga acceso (el resto del agente sí sigue funcionando)
-    const reply = signatureVerified
-      ? await ctx.runMutation(internal.auth.verifyLoginCode, {
-          schoolId: school._id,
-          phone: contactPhone,
-          code: loginCode,
-        })
-      : "El acceso por WhatsApp está en mantenimiento. Intenta más tarde o contacta a la dirección.";
-    if (!signatureVerified) console.warn("[kapso-webhook] código de acceso rechazado: KAPSO_WEBHOOK_SECRET no configurado");
-    await ctx.scheduler.runAfter(0, internal.external.kapso.sendText, {
-      phoneNumberId: phone_number_id,
-      to: contactPhone,
-      body: reply,
-    });
-    return new Response("ok", { status: 200 });
+  // "portal" → link personal de acceso (solo dirección y padres registrados;
+  // a un prospecto no se le intercepta y lo atiende el agente normal)
+  const normalizedText = inboundText
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z ]/g, "")
+    .trim();
+  const wantsPortal = /^(el |mi )?(portal|panel|acceso|link del portal|entrar al portal|quiero entrar al portal)$/.test(normalizedText);
+  if (wantsPortal) {
+    if (!signatureVerified) {
+      // Sin firma no hay garantía de que el remitente sea real
+      console.warn("[kapso-webhook] link de acceso no enviado: KAPSO_WEBHOOK_SECRET no configurado");
+    } else {
+      const token = randomHex(32);
+      const link = await ctx.runMutation(internal.auth.createMagicLink, {
+        schoolId: school._id,
+        phone: contactPhone,
+        tokenHash: await sha256Hex(token),
+      });
+      if (link) {
+        const appUrl = (process.env.APP_URL ?? "https://schoolconnectmx.netlify.app").replace(/\/$/, "");
+        const url = `${appUrl}/acceso/${link.schoolSlug}#${token}`;
+        const firstName = link.displayName.split(" ")[0];
+        const body =
+          link.role === "director"
+            ? `🔑 Aquí está tu acceso al panel de dirección:\n${url}\n\nEl link es personal, funciona una sola vez y vence en 15 minutos.`
+            : `🔑 ¡Hola, ${firstName}! Aquí está tu acceso al portal de padres:\n${url}\n\nEl link es personal, funciona una sola vez y vence en 15 minutos.`;
+        await ctx.scheduler.runAfter(0, internal.external.kapso.sendText, {
+          phoneNumberId: phone_number_id,
+          to: contactPhone,
+          body,
+        });
+        return new Response("ok", { status: 200 });
+      }
+    }
   }
 
   const command = inboundText.toUpperCase().normalize("NFD").replace(/[̀-ͯ]/g, "");

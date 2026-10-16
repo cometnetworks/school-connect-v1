@@ -3,122 +3,30 @@ import { internal } from "./_generated/api";
 import { ConvexError, v } from "convex/values";
 import { Doc } from "./_generated/dataModel";
 import { normalizeMxPhone, phoneVariants, samePhone } from "./lib/phone";
-import { getSchoolSession, getSessionByToken, sha256Hex } from "./lib/session";
+import { getSchoolSession, getSessionByToken, randomHex, sha256Hex } from "./lib/session";
 
 /**
- * Acceso por WhatsApp con OTP inverso:
- * 1. startLogin: el portal pide un código para un teléfono.
- * 2. El usuario ENVÍA el código al WhatsApp de la escuela (link wa.me).
- * 3. verifyLoginCode (desde el webhook): si el número que lo envía coincide
- *    y está registrado, la solicitud queda "verified".
- * 4. completeLogin: el navegador canjea su secreto por un token de sesión.
+ * Acceso con link personal por WhatsApp:
+ * 1. El usuario le escribe "portal" a Aurora.
+ * 2. El webhook (con firma verificada) identifica el número y, si es dirección
+ *    o un padre registrado, responde con un link de un solo uso (15 min).
+ * 3. La página /acceso/[slug] canjea el link por una sesión de 30 días y
+ *    lleva a cada quien a lo suyo según su rol.
  *
- * Así no se necesitan plantillas de Meta para mandar el código.
+ * El token viaja en el #fragmento del link: no llega a servidores ni a
+ * los previews de WhatsApp.
  */
 
-const LOGIN_TTL_MS = 10 * 60 * 1000;
+const MAGIC_LINK_TTL_MS = 15 * 60 * 1000;
 const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
-const MAX_REQUESTS_PER_WINDOW = 5;
-const CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"; // sin 0/O, 1/I/L
 
-function randomCode(length: number): string {
-  const bytes = new Uint8Array(length);
-  crypto.getRandomValues(bytes);
-  return Array.from(bytes, (b) => CODE_ALPHABET[b % CODE_ALPHABET.length]).join("");
-}
-
-function randomHex(byteLength: number): string {
-  const bytes = new Uint8Array(byteLength);
-  crypto.getRandomValues(bytes);
-  return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
-}
-
-// ── 1. Iniciar acceso ────────────────────────────────────────────────
-
-export const startLogin = action({
-  args: { schoolSlug: v.string(), phone: v.string() },
-  handler: async (ctx, { schoolSlug, phone }): Promise<{
-    code: string;
-    secret: string;
-    waLink: string;
-    expiresAt: number;
-  }> => {
-    const normalized = normalizeMxPhone(phone);
-    if (!/^52\d{10}$/.test(normalized)) {
-      throw new ConvexError("Escribe tu número de WhatsApp a 10 dígitos.");
-    }
-
-    const school = await ctx.runQuery(internal.schools.getBySlug, { slug: schoolSlug });
-    if (!school?.whatsappNumber) {
-      throw new ConvexError("Esta escuela aún no tiene WhatsApp configurado.");
-    }
-
-    const code = `SC-${randomCode(6)}`;
-    const secret = randomHex(32);
-    const expiresAt = Date.now() + LOGIN_TTL_MS;
-
-    await ctx.runMutation(internal.auth.createLoginRequest, {
-      schoolId: school._id,
-      phone: normalized,
-      code,
-      secretHash: await sha256Hex(secret),
-      expiresAt,
-    });
-
-    const schoolNumber = school.whatsappNumber.replace(/\D/g, "");
-    const text = `Mi código de acceso al portal es ${code}`;
-    return {
-      code,
-      secret,
-      waLink: `https://wa.me/${schoolNumber}?text=${encodeURIComponent(text)}`,
-      expiresAt,
-    };
-  },
-});
-
-export const createLoginRequest = internalMutation({
-  args: {
-    schoolId: v.id("schools"),
-    phone: v.string(),
-    code: v.string(),
-    secretHash: v.string(),
-    expiresAt: v.number(),
-  },
-  handler: async (ctx, args) => {
-    const windowStart = Date.now() - LOGIN_TTL_MS;
-    const recent = await ctx.db
-      .query("loginRequests")
-      .withIndex("by_phone", (q) => q.eq("phone", args.phone))
-      .filter((q) => q.gt(q.field("_creationTime"), windowStart))
-      .collect();
-    if (recent.length >= MAX_REQUESTS_PER_WINDOW) {
-      throw new ConvexError("Demasiados intentos. Espera unos minutos e intenta de nuevo.");
-    }
-    await ctx.db.insert("loginRequests", { ...args, status: "pending" });
-  },
-});
-
-// ── 2. Estado (el navegador lo observa en tiempo real) ───────────────
-
-export const loginStatus = query({
-  args: { secret: v.string() },
-  handler: async (ctx, { secret }) => {
-    const secretHash = await sha256Hex(secret);
-    const req = await ctx.db
-      .query("loginRequests")
-      .withIndex("by_secret", (q) => q.eq("secretHash", secretHash))
-      .first();
-    return req ? { status: req.status } : null;
-  },
-});
-
-// ── 3. Verificación desde el webhook de WhatsApp ─────────────────────
+type Identity = { role: "parent" | "director"; userId?: Doc<"users">["_id"]; displayName: string };
 
 async function resolveIdentity(
   ctx: MutationCtx,
   school: Doc<"schools">,
   phone: string,
-): Promise<{ role: "parent" | "director"; userId?: Doc<"users">["_id"]; displayName: string } | null> {
+): Promise<Identity | null> {
   if (school.directorPhone && samePhone(school.directorPhone, phone)) {
     return { role: "director", displayName: "Dirección" };
   }
@@ -142,43 +50,65 @@ async function resolveIdentity(
   return null;
 }
 
-/** Devuelve el texto de respuesta que se le manda por WhatsApp a quien envió el código */
-export const verifyLoginCode = internalMutation({
-  args: { schoolId: v.id("schools"), phone: v.string(), code: v.string() },
-  handler: async (ctx, { schoolId, phone, code }): Promise<string> => {
+// ── 1. Crear link (desde el webhook) ─────────────────────────────────
+
+/** Devuelve null si el número no es dirección ni un padre registrado */
+export const createMagicLink = internalMutation({
+  args: { schoolId: v.id("schools"), phone: v.string(), tokenHash: v.string() },
+  handler: async (ctx, { schoolId, phone, tokenHash }) => {
     const school = await ctx.db.get(schoolId);
-    if (!school) return "No pudimos validar tu código. Intenta de nuevo desde el portal.";
-
-    const req = await ctx.db
-      .query("loginRequests")
-      .withIndex("by_code", (q) => q.eq("code", code))
-      .filter((q) => q.eq(q.field("schoolId"), schoolId))
-      .first();
-
-    if (!req || req.status !== "pending" || req.expiresAt < Date.now()) {
-      return "Ese código no es válido o ya expiró. Genera uno nuevo en el portal.";
-    }
-    if (!samePhone(req.phone, phone)) {
-      return "Este código se generó para otro número de WhatsApp. Revisa el número que escribiste en el portal y vuelve a intentarlo.";
-    }
-
+    if (!school) return null;
     const identity = await resolveIdentity(ctx, school, phone);
-    if (!identity) {
-      await ctx.db.patch(req._id, { status: "rejected" });
-      return `Tu número no está registrado en ${school.name}. Pide a la dirección que lo agregue para poder entrar al portal.`;
-    }
+    if (!identity) return null;
 
-    await ctx.db.patch(req._id, {
-      status: "verified",
+    await ctx.db.insert("magicLinks", {
+      tokenHash,
+      schoolId,
+      phone: normalizeMxPhone(phone),
       ...identity,
-      expiresAt: Date.now() + LOGIN_TTL_MS, // tiempo para que el navegador canjee
+      expiresAt: Date.now() + MAGIC_LINK_TTL_MS,
     });
+    return { role: identity.role, displayName: identity.displayName, schoolSlug: school.slug };
+  },
+});
 
-    const firstName = identity.displayName.split(" ")[0];
-    return (
-      `✅ Listo, ${firstName}. Ya puedes regresar al portal de ${school.name}.\n\n` +
-      `Si no fuiste tú, responde *CERRAR SESIÓN* y cerramos todos tus accesos.`
-    );
+// ── 2. Canjear link por sesión (desde /acceso/[slug]) ────────────────
+
+export const redeemMagicLink = action({
+  args: { schoolSlug: v.string(), token: v.string() },
+  handler: async (ctx, { schoolSlug, token }): Promise<{ sessionToken: string; role: "parent" | "director" }> => {
+    const sessionToken = randomHex(32);
+    const role = await ctx.runMutation(internal.auth.consumeMagicLink, {
+      schoolSlug,
+      tokenHash: await sha256Hex(token),
+      sessionTokenHash: await sha256Hex(sessionToken),
+    });
+    return { sessionToken, role };
+  },
+});
+
+export const consumeMagicLink = internalMutation({
+  args: { schoolSlug: v.string(), tokenHash: v.string(), sessionTokenHash: v.string() },
+  handler: async (ctx, { schoolSlug, tokenHash, sessionTokenHash }) => {
+    const link = await ctx.db
+      .query("magicLinks")
+      .withIndex("by_token", (q) => q.eq("tokenHash", tokenHash))
+      .first();
+    const school = link ? await ctx.db.get(link.schoolId) : null;
+    if (!link || !school || school.slug !== schoolSlug || link.usedAt || link.expiresAt < Date.now()) {
+      throw new ConvexError("Este link ya se usó o venció. Escríbele *portal* a Aurora para recibir uno nuevo.");
+    }
+    await ctx.db.patch(link._id, { usedAt: Date.now() });
+    await ctx.db.insert("sessions", {
+      tokenHash: sessionTokenHash,
+      schoolId: link.schoolId,
+      phone: link.phone,
+      role: link.role,
+      userId: link.userId,
+      displayName: link.displayName,
+      expiresAt: Date.now() + SESSION_TTL_MS,
+    });
+    return link.role;
   },
 });
 
@@ -196,44 +126,20 @@ export const revokeSessionsByPhone = internalMutation({
   },
 });
 
-// ── 4. Canjear la solicitud verificada por un token de sesión ────────
-
-export const completeLogin = action({
-  args: { secret: v.string() },
-  handler: async (ctx, { secret }): Promise<{ token: string }> => {
-    const token = randomHex(32);
-    await ctx.runMutation(internal.auth.createSession, {
-      secretHash: await sha256Hex(secret),
-      tokenHash: await sha256Hex(token),
-    });
-    return { token };
-  },
-});
-
-export const createSession = internalMutation({
-  args: { secretHash: v.string(), tokenHash: v.string() },
-  handler: async (ctx, { secretHash, tokenHash }) => {
-    const req = await ctx.db
-      .query("loginRequests")
-      .withIndex("by_secret", (q) => q.eq("secretHash", secretHash))
-      .first();
-    if (!req || req.status !== "verified" || req.expiresAt < Date.now() || !req.role) {
-      throw new ConvexError("El acceso expiró. Genera un código nuevo.");
-    }
-    await ctx.db.patch(req._id, { status: "consumed" });
-    await ctx.db.insert("sessions", {
-      tokenHash,
-      schoolId: req.schoolId,
-      phone: req.phone,
-      role: req.role,
-      userId: req.userId,
-      displayName: req.displayName,
-      expiresAt: Date.now() + SESSION_TTL_MS,
-    });
-  },
-});
-
 // ── Sesión actual ────────────────────────────────────────────────────
+
+/** Datos públicos para la pantalla de acceso: nombre y WhatsApp de la escuela */
+export const schoolAccessInfo = query({
+  args: { schoolSlug: v.string() },
+  handler: async (ctx, { schoolSlug }) => {
+    const school = await ctx.db
+      .query("schools")
+      .withIndex("by_slug", (q) => q.eq("slug", schoolSlug))
+      .first();
+    if (!school) return null;
+    return { name: school.name, whatsappNumber: school.whatsappNumber?.replace(/\D/g, "") ?? null };
+  },
+});
 
 export const me = query({
   args: { schoolSlug: v.string(), sessionToken: v.string() },
@@ -264,3 +170,23 @@ export const validateSession = internalQuery({
     return auth ? { role: auth.session.role, schoolId: auth.school._id } : null;
   },
 });
+
+/** Limpieza de links y sesiones vencidos (cron diario) */
+export const purgeExpired = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    const now = Date.now();
+    let removed = 0;
+    for (const table of ["magicLinks", "sessions"] as const) {
+      const docs = await ctx.db.query(table).collect();
+      for (const d of docs) {
+        if (d.expiresAt < now) {
+          await ctx.db.delete(d._id);
+          removed++;
+        }
+      }
+    }
+    return { removed };
+  },
+});
+
