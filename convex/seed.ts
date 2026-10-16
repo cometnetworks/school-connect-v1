@@ -1,4 +1,5 @@
 import { internalMutation } from "./_generated/server";
+import { v } from "convex/values";
 
 export const insertAlina = internalMutation({
   args: {},
@@ -1070,20 +1071,15 @@ export const enrichAlinaInfo = internalMutation({
 
 /** Registra el teléfono de la Mtra. Carmen López (maestra de Zaíd) */
 export const setCarmenPhone = internalMutation({
-  args: {},
-  handler: async (ctx) => {
-    // Buscar por email
+  args: { phone: v.string() },
+  handler: async (ctx, { phone }) => {
     const carmen = await ctx.db
       .query("users")
       .withIndex("by_email", (q) => q.eq("email", "carmen.lopez@institutoalina.mx"))
       .first();
     if (!carmen) return { note: "Carmen no encontrada — corre seedAlinaDemo primero" };
-
-    // Verificar si ya tiene el teléfono correcto
-    if (carmen.phone === "529901030316") return { note: "Ya tiene el teléfono correcto", id: carmen._id };
-
-    await ctx.db.patch(carmen._id, { phone: "529901030316" });
-    return { updated: true, id: carmen._id, phone: "529901030316" };
+    await ctx.db.patch(carmen._id, { phone });
+    return { updated: true, id: carmen._id, phone };
   },
 });
 
